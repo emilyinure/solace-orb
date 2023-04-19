@@ -112,7 +112,6 @@ std::uint32_t get_orb_state()
     return orb.get_orb_state();
 }
 
-
 float get_auto_attack_range(game_object* from)
 {
     auto attack_range = from->get_bounding_radius();
@@ -133,9 +132,9 @@ void on_draw()
         return;
     if (myhero->is_dead())
         return;
-    draw_manager->add_circle(myhero->get_position(), get_auto_attack_range(myhero.get()),
-                             0xA0FFFFFF);
-    draw_manager->add_filled_circle(myhero->get_position(), get_auto_attack_range(myhero.get()), 0x50FFFFFF);
+    float range = orb.get_auto_attack_range(myhero.get());
+    draw_manager->add_circle(myhero->get_position(), range, 0xA0FFFFFF);
+    draw_manager->add_filled_circle(myhero->get_position(), range, 0x50FFFFFF);
 }
 void on_preupdate()
 {

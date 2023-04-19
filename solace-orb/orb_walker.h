@@ -20,9 +20,21 @@ public:
     bool enabled = false;
     vector m_move_pos;
     uintptr_t id;
+
+    float get_auto_attack_range(game_object* from, game_object* to = nullptr);
+    bool is_in_auto_attack_range(game_object* from, game_object* to, float additional, bool spacing);
+
     bool last_hit_mode();
     bool mixed_mode();
     bool lane_clear_mode();
+    bool find_jungle_target();
+    bool find_turret_target();
+    bool find_inhibitor_target();
+    bool find_nexus_target();
+    bool find_ward_target();
+    bool find_champ_target();
+    bool find_other_targets();
+    float get_ping();
     bool combo_mode();
     bool flee_mode();
     bool none_mode();
