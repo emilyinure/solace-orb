@@ -135,7 +135,7 @@ bool orb_walker::find_champ_target_special()
     {
         if (target_filter(i.get()))
             continue;
-        if (keyboard_state->is_pressed(keyboard_game::mouse5))
+        if (settings::auto_space->get_bool())
         {
             if (is_in_auto_attack_range(i.get(), myhero.get(), i->get_move_speed() * get_ping(), true))
             {
@@ -592,49 +592,7 @@ bool orb_walker::combo_mode() // needs rework to account for priority
         game_object_script target{};
         enabled = true;
         m_orb_state = orbwalker_state_flags::combo;
-        for (auto& i : entitylist->get_enemy_heroes())
-        {
-            if (!i->is_valid() || i->is_dead())
-                continue;
-            if (!i->is_attack_allowed_on_target())
-                continue;
-            if (!i->is_visible())
-                continue;
-            if (keyboard_state->is_pressed(keyboard_game::mouse5))
-            {
-                if (is_in_auto_attack_range(i.get(), myhero.get(), i->get_move_speed() * get_ping(), true))
-                {
-                    auto diff = ((myhero->get_position() - i->get_position()).normalized());
-                    if (math::IsZero(diff.length()))
-                    {
-                        continue;
-                    }
-                    auto new_pos = myhero->get_position() + diff * 200.f;
-                    new_pos.z = navmesh->get_height_for_position(new_pos.x, new_pos.y);
-
-                    set_orbwalking_point(new_pos);
-
-                    if (is_in_auto_attack_range(myhero.get(), i.get()))
-                    {
-                        set_orbwalking_target(i);
-                    }
-                    else
-                        set_orbwalking_target(nullptr);
-                    return true;
-                }
-            }
-            if (is_in_auto_attack_range(myhero.get(), i.get()))
-            {
-                auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
-                float after = i->get_real_health() - damage;
-                if (after < lowest_health_after_attack || lowest_health_after_attack < 0.5f)
-                {
-                    console->print("target");
-                    lowest_health_after_attack = fmaxf(0.f, after);
-                    set_orbwalking_target(i);
-                }
-            }
-        }
+        find_champ_target_special();
         auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
         set_orbwalking_point(pos);
         return true;

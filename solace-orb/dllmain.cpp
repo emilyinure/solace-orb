@@ -177,9 +177,10 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
         bindings_tab->add_hotkey("solace.orb.bindings.last_hit", "Last Hit", TreeHotkeyMode::Hold, 88, false);
     settings::lane_clear =
         bindings_tab->add_hotkey("solace.orb.bindings.laneclear", "Lane Clear", TreeHotkeyMode::Hold, 86, false);
-    settings::combo =
-        bindings_tab->add_hotkey("solace.orb.bindings.combo", "Combo", TreeHotkeyMode::Hold, 32, false);
+    settings::combo = bindings_tab->add_hotkey("solace.orb.bindings.combo", "Combo", TreeHotkeyMode::Hold, 32, false);
     settings::mixed = bindings_tab->add_hotkey("solace.orb.bindings.mixed", "Mixed", TreeHotkeyMode::Hold, 160, false);
+    settings::auto_space =
+        bindings_tab->add_hotkey("solace.orb.bindings.autospace", "Auto Space", TreeHotkeyMode::Hold, 5, false);
 
     event_handler<events::on_env_draw>::add_callback(on_draw);
     event_handler<events::on_preupdate>::add_callback(on_preupdate, event_prority::highest);
