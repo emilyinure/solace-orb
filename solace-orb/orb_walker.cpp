@@ -149,6 +149,7 @@ bool orb_walker::find_champ_target_special()
 
                 set_orbwalking_point(new_pos);
 
+                console->print("target");
                 if (is_in_auto_attack_range(myhero.get(), i.get()))
                 {
                     set_orbwalking_target(i);
@@ -164,7 +165,6 @@ bool orb_walker::find_champ_target_special()
             float after = i->get_real_health() - damage;
             if (after < lowest_health_after_attack || lowest_health_after_attack < 0.5f)
             {
-                console->print("target");
                 lowest_health_after_attack = fmaxf(0.f, after);
                 set_orbwalking_target(i);
                 ret = true;
@@ -592,9 +592,9 @@ bool orb_walker::combo_mode() // needs rework to account for priority
         game_object_script target{};
         enabled = true;
         m_orb_state = orbwalker_state_flags::combo;
-        find_champ_target_special();
         auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
         set_orbwalking_point(pos);
+        find_champ_target_special();
         return true;
     }
     // console->print(__FUNCTION__);
