@@ -1,7 +1,8 @@
 #include "../plugin_sdk/plugin_sdk.hpp"
 #include "orb_walker.h"
+#include "settings.h"
 
-PLUGIN_NAME("Solace")
+PLUGIN_NAME("solace-orb beta")
 PLUGIN_TYPE(plugin_type::core)
 
 orb_walker orb;
@@ -126,25 +127,35 @@ float get_auto_attack_range(game_object* from)
     return attack_range;
 }
 
+void on_menu()
+{
+}
+
 void on_draw()
 {
     if (orb.id != orbwalker->get_active_orbwalker())
         return;
     if (myhero->is_dead())
         return;
-    float range = orb.get_auto_attack_range(myhero.get());
-    draw_manager->add_circle(myhero->get_position(), range, 0xA0FFFFFF);
-    draw_manager->add_filled_circle(myhero->get_position(), range, 0x50FFFFFF);
+    if (settings::drawings::enable->get_bool())
+    {
+        float range = orb.get_auto_attack_range(myhero.get());
+        draw_manager->add_circle(myhero->get_position(), range, 0xA0FFFFFF);
+        draw_manager->add_filled_circle(myhero->get_position(), range, 0x50FFFFFF);
+    }
 }
+
 void on_preupdate()
 {
     if (orb.id != orbwalker->get_active_orbwalker())
         return;
     orb.enabled = false;
+    orb.mixed_mode();
     orb.combo_mode();
     orb.last_hit_mode();
     orb.lane_clear_mode();
 }
+
 void on_update()
 {
     if (orb.id != orbwalker->get_active_orbwalker())
@@ -155,11 +166,26 @@ void on_update()
 PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
 {
     DECLARE_GLOBALS(plugin_sdk_good);
+
+    auto main_menu = menu->create_tab("solace.orb", "solace-orb beta");
+    const auto drawings_tab = main_menu->add_tab("solace.orb.drawings", "Drawings");
+    settings::drawings::enable = drawings_tab->add_checkbox("solace.orb.drawings.enable", "Enable", true);
+
+    
+    const auto bindings_tab = main_menu->add_tab("solace.orb.bindings", "Bindings");
+    settings::last_hit =
+        bindings_tab->add_hotkey("solace.orb.bindings.last_hit", "Last Hit", TreeHotkeyMode::Hold, 88, false);
+    settings::lane_clear =
+        bindings_tab->add_hotkey("solace.orb.bindings.laneclear", "Lane Clear", TreeHotkeyMode::Hold, 86, false);
+    settings::combo =
+        bindings_tab->add_hotkey("solace.orb.bindings.combo", "Combo", TreeHotkeyMode::Hold, 32, false);
+    settings::mixed = bindings_tab->add_hotkey("solace.orb.bindings.mixed", "Mixed", TreeHotkeyMode::Hold, 160, false);
+
     event_handler<events::on_env_draw>::add_callback(on_draw);
-    event_handler<events::on_preupdate>::add_callback(on_preupdate);
+    event_handler<events::on_preupdate>::add_callback(on_preupdate, event_prority::highest);
     event_handler<events::on_update>::add_callback(on_update);
     orb.id = orbwalker->add_orbwalker_callback(
-        "solace-orb", last_hit_mode, mixed_mode, lane_clear_mode, combo_mode, flee_mode, none_mode, harass,
+        "solace-orb beta", last_hit_mode, mixed_mode, lane_clear_mode, combo_mode, flee_mode, none_mode, harass,
         reset_auto_attack_timer, get_target, get_last_target, get_last_aa_time, get_last_move_time,
         get_my_projectile_speed, can_attack, can_move, should_wait, move_to, orbwalk, set_attack, set_movement,
         set_orbwalking_target, set_orbwalking_point, get_orb_state);
