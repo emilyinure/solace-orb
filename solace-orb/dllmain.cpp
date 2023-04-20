@@ -143,7 +143,7 @@ void on_draw()
         draw_manager->add_circle(myhero->get_position(), range, 0xA0FFFFFF);
         
         draw_manager->add_circle_with_glow(myhero->get_position(), 0x60FFFFFF, range, 3.f,
-                                           glow_data{20, 100.f, 0, 0});
+                                           glow_data{20, 20.f, 0, 0});
         //draw_manager->add_filled_circle(myhero->get_position(), range, 0x50FFFFFF);
     }
 }
