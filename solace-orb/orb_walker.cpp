@@ -127,32 +127,6 @@ bool orb_walker::is_in_auto_attack_range(game_object* from, game_object* to, flo
     return from_position.distance_squared(to_position) < attack_range * attack_range;
 }
 
-int IntersectRaySphere(vector p, vector d, vector s, float r, vector& q)
-{
-    float t = 0.f;
-    vector m = p - s;
-    float b = m.dot_product(d);
-    float c = m.dot_product(m) - r * r;
-
-    // Exit if r’s origin outside s (c > 0) and r pointing away from s (b > 0)
-    if (c > 0.0f && b > 0.0f)
-        return 0;
-    float discr = b * b - c;
-
-    // A negative discriminant corresponds to ray missing sphere
-    if (discr < 0.0f)
-        return 0;
-
-    // Ray now found to intersect sphere, compute smallest t value of intersection
-    t = -b - sqrt(discr);
-
-    // If t is negative, ray started inside sphere so clamp t to zero
-    if (t < 0.0f)
-        t = 0.0f;
-    q = p + d * t;
-
-    return 1;
-}
 bool orb_walker::space_enemy_champs()
 {
     if (!settings::auto_space->get_bool())
@@ -193,36 +167,6 @@ bool orb_walker::space_enemy_champs()
             set_orbwalking_point(new_pos);
 
             return true;
-        }
-        else
-        {
-            if (i->get_path_controller()->is_moving())
-            {
-                to_position = to_position + i->get_pathing_direction() * get_ping() * 1.1f;
-            }
-            auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
-            auto dist = get_auto_attack_range(myhero.get(), i.get());
-            auto wanted_dif = (to_position - pos);
-            auto wanted_dif_len = wanted_dif.length();
-            if (wanted_dif_len <= dist)
-            {
-                float dist_out_of_aa_range = (diff.length() - dist);
-                vector new_pos;
-                float new_space = 0.f;
-                if (!can_attack())
-                {
-                    float delta_time =
-                        (m_last_attack_time + myhero->get_attack_delay() / 2.f) - (gametime->get_time() + get_ping());
-
-                    new_space += fabsf(delta_time) * myhero->get_move_speed();
-                }
-                if (IntersectRaySphere(from_position, (pos - from_position).normalized(), to_position,
-                                       dist + new_space - 3.f, new_pos))
-                {
-                    new_pos.z = navmesh->get_height_for_position(new_pos.x, new_pos.y);
-                    set_orbwalking_point(new_pos);
-                }
-            }
         }
     }
     return false;
