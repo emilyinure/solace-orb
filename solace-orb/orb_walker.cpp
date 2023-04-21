@@ -160,16 +160,10 @@ bool orb_walker::space_enemy_champs()
         float move_time = m_last_attack_time + myhero->get_attack_cast_delay();
         if (attack_time > time && time > move_time)
         {
-            float new_time = attack_time - move_time;
-
+            float new_time = (attack_time - move_time) / 2.f;
             float delta_time = (attack_time - time);
-            //if (new_time / 2.f < delta_time)
-            //    delta_time = new_time - delta_time;
 
-            float half_new_time = new_time / 2.f;
-            delta_time = half_new_time - fabsf(delta_time - half_new_time);
-
-            console->print(std::to_string(delta_time).c_str());
+            delta_time = new_time - fabsf(delta_time - new_time);
 
             space += fabsf(delta_time) * myhero->get_move_speed();
         }
@@ -235,17 +229,13 @@ bool orb_walker::can_move(float extra_windup)
 
 bool orb_walker::should_wait() // idrk what this is for lol
 {
-    return false;
     if (myhero->is_winding_up())
         return true;
-    return m_move_pause > gametime->get_time();
-    // console->print(__FUNCTION__);
-    auto active = myhero->get_active_spell();
 
-    return !!active;
-    if (!active)
+    float game_time = gametime->get_time() + get_ping();
+    if (game_time <= m_last_attack_time)
         return true;
-    return false;
+    return game_time > m_last_attack_time + myhero->get_attack_cast_delay();
 }
 
 std::uint32_t orb_walker::get_orb_state()
@@ -525,7 +515,7 @@ bool orb_walker::mixed_mode()
                     }
                     else
                     {
-                        auto predicted_health_when_next_attack = health_prediction->get_lane_clear_health_prediction(
+                        auto predicted_health_when_next_attack = health_prediction->get_health_prediction(
                             i, get_ping() + myhero->get_attack_delay() + myhero->get_attack_cast_delay() * 2 +
                                    proj_travel_time);
 
