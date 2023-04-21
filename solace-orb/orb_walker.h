@@ -37,6 +37,7 @@ public:
     bool find_ward_target();
     bool find_champ_target();
     bool find_other_targets();
+    bool space_enemy_champs();
     bool find_champ_target_special();
     float get_ping();
     bool combo_mode();

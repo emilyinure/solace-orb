@@ -153,6 +153,80 @@ int IntersectRaySphere(vector p, vector d, vector s, float r, vector& q)
 
     return 1;
 }
+bool orb_walker::space_enemy_champs()
+{
+    if (!settings::auto_space->get_bool())
+        return false;
+    for (auto& i : entitylist->get_enemy_heroes())
+    {
+        if (target_filter(i.get()))
+            continue;
+        vector to_position = i->get_position();
+        vector from_position = myhero->get_position();
+
+        if (i->is_ai_hero())
+            to_position = i->get_path_controller()->get_position_on_path();
+
+        if (myhero->is_ai_hero())
+            from_position = myhero->get_path_controller()->get_position_on_path();
+
+        auto diff = (to_position - from_position).normalized();
+
+        float space = i->get_move_speed() * get_ping();
+        if (!can_attack())
+        {
+            float delta_time =
+                (m_last_attack_time + myhero->get_attack_delay() / 2.f) - (gametime->get_time() + get_ping());
+
+            space += fabsf(delta_time) * myhero->get_move_speed();
+        }
+
+        if (is_in_auto_attack_range(i.get(), myhero.get(), space, true))
+        {
+            if (math::IsZero(diff.length()))
+            {
+                continue;
+            }
+            auto new_pos = myhero->get_position() + diff * -200.f;
+            new_pos.z = navmesh->get_height_for_position(new_pos.x, new_pos.y);
+
+            set_orbwalking_point(new_pos);
+
+            return true;
+        }
+        else
+        {
+            if (i->get_path_controller()->is_moving())
+            {
+                to_position = to_position + i->get_pathing_direction() * get_ping() * 1.1f;
+            }
+            auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
+            auto dist = get_auto_attack_range(myhero.get(), i.get());
+            auto wanted_dif = (to_position - pos);
+            auto wanted_dif_len = wanted_dif.length();
+            if (wanted_dif_len <= dist)
+            {
+                float dist_out_of_aa_range = (diff.length() - dist);
+                vector new_pos;
+                float new_space = 0.f;
+                if (!can_attack())
+                {
+                    float delta_time =
+                        (m_last_attack_time + myhero->get_attack_delay() / 2.f) - (gametime->get_time() + get_ping());
+
+                    new_space += fabsf(delta_time) * myhero->get_move_speed();
+                }
+                if (IntersectRaySphere(from_position, (pos - from_position).normalized(), to_position,
+                                       dist + new_space - 3.f, new_pos))
+                {
+                    new_pos.z = navmesh->get_height_for_position(new_pos.x, new_pos.y);
+                    set_orbwalking_point(new_pos);
+                }
+            }
+        }
+    }
+    return false;
+}
 
 bool orb_walker::find_champ_target_special()
 {
@@ -162,79 +236,6 @@ bool orb_walker::find_champ_target_special()
     {
         if (target_filter(i.get()))
             continue;
-        if (settings::auto_space->get_bool())
-        {
-            vector to_position = i->get_position();
-            vector from_position = myhero->get_position();
-
-            if (i->is_ai_hero())
-                to_position = i->get_path_controller()->get_position_on_path();
-
-            if (myhero->is_ai_hero())
-                from_position = myhero->get_path_controller()->get_position_on_path();
-
-            auto diff = (to_position - from_position).normalized();
-
-            float space = i->get_move_speed() * get_ping();
-            if (!can_attack())
-            {
-                float delta_time = (m_last_attack_time + myhero->get_attack_delay() / 2.f) - (gametime->get_time() + get_ping());
-
-                space += fabsf(delta_time) * myhero->get_move_speed();
-            }
-
-            if (is_in_auto_attack_range(i.get(), myhero.get(), space, true))
-            {
-                if (math::IsZero(diff.length()))
-                {
-                    continue;
-                }
-                auto new_pos = myhero->get_position() + diff * -200.f;
-                new_pos.z = navmesh->get_height_for_position(new_pos.x, new_pos.y);
-
-                set_orbwalking_point(new_pos);
-
-                if (is_in_auto_attack_range(myhero.get(), i.get()))
-                {
-                    set_orbwalking_target(i);
-                }
-                else
-                    set_orbwalking_target(nullptr);
-                return true;
-            }
-            else
-            {
-                if (i->get_path_controller()->is_moving())
-                {
-                    to_position = to_position + i->get_pathing_direction() * get_ping() * 1.1f;
-                }
-                auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
-                auto dist = get_auto_attack_range(myhero.get(), i.get());
-                auto wanted_dif = (to_position - pos);
-                auto wanted_dif_len = wanted_dif.length();
-                if (wanted_dif_len <= dist)
-                {
-                    console->print("ok2");
-                    float dist_out_of_aa_range = (diff.length() - dist);
-                    vector new_pos;
-                    float new_space = 0.f;
-                    if (!can_attack())
-                    {
-                        float delta_time = (m_last_attack_time + myhero->get_attack_delay() / 2.f) -
-                                           (gametime->get_time() + get_ping());
-
-                        new_space += fabsf(delta_time) * myhero->get_move_speed();
-                    }
-                    if (IntersectRaySphere(from_position, (pos - from_position).normalized(), to_position,
-                                           dist + new_space - 3.f, new_pos))
-                    {
-                        new_pos.z = navmesh->get_height_for_position(new_pos.x, new_pos.y);
-                        set_orbwalking_point(new_pos);
-                        console->print("ok3");
-                    }
-                }
-            }
-        }
         if (is_in_auto_attack_range(myhero.get(), i.get()))
         {
             auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
@@ -489,6 +490,8 @@ bool orb_walker::last_hit_mode()
 {
     if (settings::last_hit->get_bool())
     {
+        auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
+        set_orbwalking_point(pos);
         set_orbwalking_target(nullptr);
         m_orb_state = orbwalker_state_flags::last_hit;
 
@@ -515,8 +518,6 @@ bool orb_walker::last_hit_mode()
                 }
             }
         }
-        auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
-        set_orbwalking_point(pos);
         enabled = true;
         return true;
         // console->print(__FUNCTION__);
@@ -527,58 +528,62 @@ bool orb_walker::mixed_mode()
 {
     if (settings::mixed->get_bool())
     {
+        auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
+        set_orbwalking_point(pos);
         enabled = true;
         bool found_to_wait = false;
         bool found_last_hit = false;
         set_orbwalking_target(nullptr);
         m_orb_state = orbwalker_state_flags::lane_clear;
 
-        for (auto& i : entitylist->get_enemy_minions()) // lane clear logic
+        if (!space_enemy_champs())
         {
-            if (target_filter(i.get()))
-                continue;
-
-            if (is_in_auto_attack_range(myhero.get(), i.get()))
+            for (auto& i : entitylist->get_enemy_minions()) // lane clear logic
             {
-                auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
+                if (target_filter(i.get()))
+                    continue;
 
-                float proj_travel_time = get_projectile_travel_time(i);
-                auto predicted_health_when_attack = health_prediction->get_health_prediction(
-                    i, get_ping() + myhero->get_attack_cast_delay() + proj_travel_time);
-                if (predicted_health_when_attack <= damage) // can we last hit them
+                if (is_in_auto_attack_range(myhero.get(), i.get()))
                 {
-                    set_orbwalking_target(i);
-                    found_last_hit = true;
+                    auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
+
+                    float proj_travel_time = get_projectile_travel_time(i);
                     auto predicted_health_when_attack = health_prediction->get_health_prediction(
-                        i, get_ping() + myhero->get_attack_delay() + myhero->get_attack_cast_delay() * 2 +
-                               proj_travel_time);
-                    if (predicted_health_when_attack <= 0.f) // will they be dead if we dont attack now
-                        break;
-                }
-                else
-                {
-                    auto predicted_health_when_next_attack = health_prediction->get_lane_clear_health_prediction(
-                        i, get_ping() + myhero->get_attack_delay() + myhero->get_attack_cast_delay() * 2 +
-                               proj_travel_time);
-
-                    if (found_last_hit)
-                        continue;
-                    if (found_to_wait) // already waiting on something else, in the future ill priorities certain
-                                       // minions
-                        continue;
-                    if (predicted_health_when_next_attack <= 0) // they will die before we can a second time, lets wait
+                        i, get_ping() + myhero->get_attack_cast_delay() + proj_travel_time);
+                    if (predicted_health_when_attack <= damage) // can we last hit them
                     {
-                        found_to_wait = true; // lets wait
-                        set_orbwalking_target(nullptr);
-                        continue;
+                        set_orbwalking_target(i);
+                        found_last_hit = true;
+                        auto predicted_health_when_attack = health_prediction->get_health_prediction(
+                            i, get_ping() + myhero->get_attack_delay() + myhero->get_attack_cast_delay() * 2 +
+                                   proj_travel_time);
+                        if (predicted_health_when_attack <= 0.f) // will they be dead if we dont attack now
+                            break;
                     }
+                    else
+                    {
+                        auto predicted_health_when_next_attack = health_prediction->get_lane_clear_health_prediction(
+                            i, get_ping() + myhero->get_attack_delay() + myhero->get_attack_cast_delay() * 2 +
+                                   proj_travel_time);
+
+                        if (found_last_hit)
+                            continue;
+                        if (found_to_wait) // already waiting on something else, in the future ill priorities certain
+                                           // minions
+                            continue;
+                        if (predicted_health_when_next_attack <=
+                            0) // they will die before we can a second time, lets wait
+                        {
+                            found_to_wait = true; // lets wait
+                            set_orbwalking_target(nullptr);
+                            continue;
+                        }
+                    }
+                    set_orbwalking_target(i);
                 }
-                set_orbwalking_target(i);
             }
         }
 
-        auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
-        set_orbwalking_point(pos);
 
         if (!found_to_wait && !found_last_hit && find_champ_target_special())
             m_orb_state = orbwalker_state_flags::combo;
@@ -595,6 +600,10 @@ bool orb_walker::lane_clear_mode()
         bool found_last_hit = false;
         set_orbwalking_target(nullptr);
         m_orb_state = orbwalker_state_flags::lane_clear;
+
+        auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
+        set_orbwalking_point(pos);
+        enabled = true;
 
         for (auto& i : entitylist->get_enemy_minions()) // lane clear logic
         {
@@ -645,9 +654,6 @@ bool orb_walker::lane_clear_mode()
             find_other_targets();
         }
 
-        auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
-        set_orbwalking_point(pos);
-        enabled = true;
         return true;
     }
     return false;
@@ -655,6 +661,7 @@ bool orb_walker::lane_clear_mode()
 
 bool orb_walker::combo_mode() // needs rework to account for priority
 {
+    console->print("combo");
     if (settings::combo->get_bool())
     {
         set_orbwalking_target(nullptr);
@@ -662,6 +669,7 @@ bool orb_walker::combo_mode() // needs rework to account for priority
         m_orb_state = orbwalker_state_flags::combo;
         auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
         set_orbwalking_point(pos);
+        space_enemy_champs();
         find_champ_target_special();
         return true;
     }

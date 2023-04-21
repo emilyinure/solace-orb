@@ -102,10 +102,13 @@ void set_movement(bool enable)
 }
 void set_orbwalking_target(game_object_script target)
 {
+    if (target != nullptr)
+        orb.enabled = true;
     orb.set_orbwalking_target(target);
 }
 void set_orbwalking_point(vector const& pos)
 {
+    console->print((std::to_string(pos.x) + std::to_string(pos.y) + std::to_string(pos.z)).c_str());
     orb.set_orbwalking_point(pos);
 }
 std::uint32_t get_orb_state()
@@ -140,8 +143,6 @@ void on_draw()
     if (settings::drawings::enable->get_bool())
     {
         float range = orb.get_auto_attack_range(myhero.get());
-        draw_manager->add_circle(myhero->get_position(), range, 0xA0FFFFFF);
-        
         draw_manager->add_circle_with_glow(myhero->get_position(), 0x60FFFFFF, range, 3.f,
                                            glow_data{20, 20.f, 0, 0});
         //draw_manager->add_filled_circle(myhero->get_position(), range, 0x50FFFFFF);
@@ -153,16 +154,19 @@ void on_preupdate()
     if (orb.id != orbwalker->get_active_orbwalker())
         return;
     orb.enabled = false;
-    orb.mixed_mode();
-    orb.combo_mode();
-    orb.last_hit_mode();
-    orb.lane_clear_mode();
 }
 
 void on_update()
 {
     if (orb.id != orbwalker->get_active_orbwalker())
         return;
+    if (!orb.enabled)
+    {
+        orb.combo_mode();
+        orb.last_hit_mode();
+        orb.lane_clear_mode();
+        orb.mixed_mode();
+    }
     orb.orbwalk(orb.get_target(), orb.m_move_pos);
 }
 
