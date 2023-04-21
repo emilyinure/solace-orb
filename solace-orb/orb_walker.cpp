@@ -107,7 +107,15 @@ bool orb_walker::is_in_auto_attack_range(game_object* from, game_object* to, flo
     {
         if (to->get_path_controller()->is_moving())
         {
-            to_position = to_position + to->get_pathing_direction() * get_ping() * 1.1f;
+            to_position = to_position + to->get_pathing_direction() * get_ping() * (1.f + (1/SERVER_TICKRATE));
+        }
+    }
+
+    if (!spacing && from->is_ai_hero())
+    {
+        if (from->get_path_controller()->is_moving())
+        {
+            from_position = from_position + from->get_pathing_direction() * get_ping() * (1.f + (1.f/SERVER_TICKRATE));
         }
     }
 
@@ -147,10 +155,21 @@ bool orb_walker::space_enemy_champs()
         auto diff = (to_position - from_position).normalized();
 
         float space = i->get_move_speed() * get_ping();
-        if (!can_attack())
+        float time = gametime->get_time() + get_ping();
+        float attack_time = m_last_attack_time + myhero->get_attack_delay();
+        float move_time = m_last_attack_time + myhero->get_attack_cast_delay();
+        if (attack_time > time && time > move_time)
         {
-            float delta_time =
-                (m_last_attack_time + myhero->get_attack_delay() / 2.f) - (gametime->get_time() + get_ping());
+            float new_time = attack_time - move_time;
+
+            float delta_time = (attack_time - time);
+            //if (new_time / 2.f < delta_time)
+            //    delta_time = new_time - delta_time;
+
+            float half_new_time = new_time / 2.f;
+            delta_time = half_new_time - fabsf(delta_time - half_new_time);
+
+            console->print(std::to_string(delta_time).c_str());
 
             space += fabsf(delta_time) * myhero->get_move_speed();
         }
@@ -605,7 +624,6 @@ bool orb_walker::lane_clear_mode()
 
 bool orb_walker::combo_mode() // needs rework to account for priority
 {
-    console->print("combo");
     if (settings::combo->get_bool())
     {
         set_orbwalking_target(nullptr);

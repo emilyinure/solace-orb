@@ -108,7 +108,6 @@ void set_orbwalking_target(game_object_script target)
 }
 void set_orbwalking_point(vector const& pos)
 {
-    console->print((std::to_string(pos.x) + std::to_string(pos.y) + std::to_string(pos.z)).c_str());
     orb.set_orbwalking_point(pos);
 }
 std::uint32_t get_orb_state()
