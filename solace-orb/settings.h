@@ -1,5 +1,5 @@
 #pragma once
-#include <../plugin_sdk/plugin_sdk.hpp>
+#include "../plugin_sdk/plugin_sdk.hpp"
 namespace settings
 {
     namespace drawings
