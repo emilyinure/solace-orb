@@ -102,8 +102,6 @@ void set_movement(bool enable)
 }
 void set_orbwalking_target(game_object_script target)
 {
-    if (target != nullptr)
-        orb.enabled = true;
     orb.set_orbwalking_target(target);
 }
 void set_orbwalking_point(vector const& pos)
@@ -142,8 +140,11 @@ void on_draw()
     if (settings::drawings::enable->get_bool())
     {
         float range = orb.get_auto_attack_range(myhero.get());
-        draw_manager->add_circle_with_glow(myhero->get_position(), 0x60FFFFFF, range, 3.f,
-                                           glow_data{20, 20.f, 0, 0});
+        draw_manager->add_circle_with_glow(myhero->get_position(), settings::drawings::color->get_color(), range, 3.f,
+                                           glow_data{0.01f*settings::drawings::glow_inner_size->get_int(),
+                                                     0.01f*settings::drawings::glow_inner_strength->get_int(),
+                                                     0.01f*settings::drawings::glow_outer_size->get_int(),
+                                                     0.01f*settings::drawings::glow_outer_strength->get_int()});
         //draw_manager->add_filled_circle(myhero->get_position(), range, 0x50FFFFFF);
     }
 }
@@ -159,14 +160,29 @@ void on_update()
 {
     if (orb.id != orbwalker->get_active_orbwalker())
         return;
-    if (!orb.enabled)
-    {
+    //if (!orb.enabled)
+    //{
         orb.combo_mode();
         orb.last_hit_mode();
         orb.lane_clear_mode();
         orb.mixed_mode();
-    }
+    //}
     orb.orbwalk(orb.get_target(), orb.m_move_pos);
+}
+
+void min_move_delay_changed(TreeEntry* tree)
+{
+    int val = tree->get_int();
+    if (settings::humanizer::max_move_delay->get_int() < val)
+        settings::humanizer::max_move_delay->set_int(val);
+}
+
+
+void max_move_delay_changed(TreeEntry* tree)
+{
+    int val = settings::humanizer::min_move_delay->get_int();
+    if (tree->get_int() < val)
+        tree->set_int(val);
 }
 
 PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
@@ -175,18 +191,38 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
 
     auto main_menu = menu->create_tab("solace.orb", "solace-orb beta");
     const auto drawings_tab = main_menu->add_tab("solace.orb.drawings", "Drawings");
-    settings::drawings::enable = drawings_tab->add_checkbox("solace.orb.drawings.enable", "Enable", true);
+    {
+        settings::drawings::enable = drawings_tab->add_checkbox("solace.orb.drawings.enable", "Enable", true);
+        float color[4] = {62.f, 214.f, 148.f, 255.f};
+        settings::drawings::color = drawings_tab->add_colorpick("solace.orb.drawings.color", "Color", color, true);
+        settings::drawings::glow_inner_size =
+            drawings_tab->add_slider("solace.orb.humanizer.glowinnersize", "Glow Inner Size", 10, 0, 100);
+        settings::drawings::glow_inner_strength =
+            drawings_tab->add_slider("solace.orb.humanizer.glowinnerstrength", "Glow Inner Strength", 10, 0, 100);
+        settings::drawings::glow_outer_size =
+            drawings_tab->add_slider("solace.orb.humanizer.glowoutersize", "Glow Outer Size", 10, 0, 100);
+        settings::drawings::glow_outer_strength =
+            drawings_tab->add_slider("solace.orb.humanizer.glowouterstrength", "Glow Outer Strength", 10, 0, 100);
+    }
 
     
     const auto bindings_tab = main_menu->add_tab("solace.orb.bindings", "Bindings");
-    settings::last_hit =
+    settings::bindings::last_hit =
         bindings_tab->add_hotkey("solace.orb.bindings.last_hit", "Last Hit", TreeHotkeyMode::Hold, 88, false);
-    settings::lane_clear =
+    settings::bindings::lane_clear =
         bindings_tab->add_hotkey("solace.orb.bindings.laneclear", "Lane Clear", TreeHotkeyMode::Hold, 86, false);
-    settings::combo = bindings_tab->add_hotkey("solace.orb.bindings.combo", "Combo", TreeHotkeyMode::Hold, 32, false);
-    settings::mixed = bindings_tab->add_hotkey("solace.orb.bindings.mixed", "Mixed", TreeHotkeyMode::Hold, 160, false);
-    settings::auto_space =
+    settings::bindings::combo = bindings_tab->add_hotkey("solace.orb.bindings.combo", "Combo", TreeHotkeyMode::Hold, 32, false);
+    settings::bindings::mixed = bindings_tab->add_hotkey("solace.orb.bindings.mixed", "Mixed", TreeHotkeyMode::Hold, 160, false);
+    settings::bindings::auto_space =
         bindings_tab->add_hotkey("solace.orb.bindings.autospace", "Auto Space", TreeHotkeyMode::Hold, 5, false);
+
+    const auto humanizer_tab = main_menu->add_tab("solace.orb.humanizer", "Humanizer");
+    settings::humanizer::min_move_delay =
+        humanizer_tab->add_slider("solace.orb.humanizer.minmovedelay", "Minimum Move Delay", 50, 40, 1000);
+    settings::humanizer::min_move_delay->add_property_change_callback(min_move_delay_changed);
+    settings::humanizer::max_move_delay =
+        humanizer_tab->add_slider("solace.orb.humanizer.maxmovedelay", "Maximum Move Delay", 80, 40, 1000);
+    settings::humanizer::max_move_delay->add_property_change_callback(max_move_delay_changed);
 
     event_handler<events::on_env_draw>::add_callback(on_draw);
     event_handler<events::on_preupdate>::add_callback(on_preupdate, event_prority::highest);

@@ -137,7 +137,7 @@ bool orb_walker::is_in_auto_attack_range(game_object* from, game_object* to, flo
 
 bool orb_walker::space_enemy_champs()
 {
-    if (!settings::auto_space->get_bool())
+    if (!settings::bindings::auto_space->get_bool())
         return false;
     for (auto& i : entitylist->get_enemy_heroes())
     {
@@ -158,15 +158,20 @@ bool orb_walker::space_enemy_champs()
         float time = gametime->get_time() + get_ping();
         float attack_time = m_last_attack_time + myhero->get_attack_delay();
         float move_time = m_last_attack_time + myhero->get_attack_cast_delay();
-        if (attack_time > time && time > move_time)
+        if (attack_time < time / 2.f)
         {
             float new_time = (attack_time - move_time) / 2.f;
-            float delta_time = (attack_time - time);
-
-            delta_time = new_time - fabsf(delta_time - new_time);
-
-            space += fabsf(delta_time) * myhero->get_move_speed();
+            space += fabsf(new_time + get_ping()) * myhero->get_move_speed();
         }
+        //if (attack_time > time && time > move_time)
+        //{
+        //    float new_time = (attack_time - move_time) / 2.f;
+        //    float delta_time = (attack_time - time);
+        //
+        //    delta_time = new_time - fabsf(delta_time - new_time);
+        //
+        //    space += fabsf(delta_time) * myhero->get_move_speed();
+        //}
 
         if (is_in_auto_attack_range(i.get(), myhero.get(), space, true))
         {
@@ -441,7 +446,7 @@ bool orb_walker::find_other_targets()
 
 bool orb_walker::last_hit_mode()
 {
-    if (settings::last_hit->get_bool())
+    if (settings::bindings::last_hit->get_bool())
     {
         auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
         set_orbwalking_point(pos);
@@ -479,7 +484,7 @@ bool orb_walker::last_hit_mode()
 }
 bool orb_walker::mixed_mode()
 {
-    if (settings::mixed->get_bool())
+    if (settings::bindings::mixed->get_bool())
     {
         auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
         set_orbwalking_point(pos);
@@ -547,7 +552,7 @@ bool orb_walker::mixed_mode()
 
 bool orb_walker::lane_clear_mode()
 {
-    if (settings::lane_clear->get_bool())
+    if (settings::bindings::lane_clear->get_bool())
     {
         bool found_to_wait = false;
         bool found_last_hit = false;
@@ -614,7 +619,7 @@ bool orb_walker::lane_clear_mode()
 
 bool orb_walker::combo_mode() // needs rework to account for priority
 {
-    if (settings::combo->get_bool())
+    if (settings::bindings::combo->get_bool())
     {
         set_orbwalking_target(nullptr);
         enabled = true;
@@ -647,7 +652,15 @@ void orb_walker::move_to(vector& pos)
 {
     if (m_move_timer + m_rand_time > gametime->get_time())
         return;
-    m_rand_time = 1.f / ((rand() % 3) + 9.f);
+
+    int min_time = settings::humanizer::min_move_delay->get_int();
+    if (settings::humanizer::max_move_delay->get_int() < min_time)
+        settings::humanizer::max_move_delay->set_int(min_time);
+    int delta_time = settings::humanizer::max_move_delay->get_int() - min_time;
+
+    int new_time = (rand() % (delta_time + 1)) + min_time;
+
+    m_rand_time = new_time / 1000.f;
     m_move_timer = gametime->get_time();
     myhero->issue_order(pos, true, false);
 }
@@ -657,10 +670,7 @@ void orb_walker::orbwalk(game_object_script target, vector& pos)
     if (!enabled)
         return;
     if (evade->is_evading())
-    {
-        reset_auto_attack_timer();
         return;
-    }
 
     bool found = false;
     if (target && target->is_valid())
