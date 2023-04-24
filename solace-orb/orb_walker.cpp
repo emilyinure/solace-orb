@@ -107,7 +107,7 @@ bool orb_walker::is_in_auto_attack_range(game_object* from, game_object* to, flo
     {
         if (to->get_path_controller()->is_moving())
         {
-            to_position = to_position + to->get_pathing_direction() * get_ping() * (1.f + (1/SERVER_TICKRATE));
+            to_position = to_position + to->get_pathing_direction() * get_ping() * (1.f + SERVER_TICK_INTERVAL);
         }
     }
 
@@ -115,7 +115,7 @@ bool orb_walker::is_in_auto_attack_range(game_object* from, game_object* to, flo
     {
         if (from->get_path_controller()->is_moving())
         {
-            from_position = from_position + from->get_pathing_direction() * get_ping() * (1.f + (1.f/SERVER_TICKRATE));
+            from_position = from_position + from->get_pathing_direction() * get_ping() * (1.f + SERVER_TICK_INTERVAL);
         }
     }
 
@@ -218,7 +218,7 @@ bool orb_walker::can_attack()
     float game_time = gametime->get_time() + get_ping();
     if (game_time <= m_last_attack_time)
         return false;
-    return game_time > m_last_attack_time + myhero->get_attack_delay();
+    return game_time > m_last_attack_time + attack_delay_on_attack;
 }
 
 bool orb_walker::can_move(float extra_windup)
@@ -229,7 +229,7 @@ bool orb_walker::can_move(float extra_windup)
     float game_time = gametime->get_time() + get_ping();
     if (game_time <= m_last_attack_time)
         return false;
-    return game_time > m_last_attack_time + myhero->get_attack_cast_delay();
+    return game_time > m_last_attack_time + attack_cast_delay_on_attack + extra_windup;
 }
 
 bool orb_walker::should_wait() // idrk what this is for lol
@@ -289,6 +289,8 @@ float orb_walker::get_projectile_travel_time(const game_object_script &to)
 
     if (myhero->is_ai_hero())
         from_position = myhero->get_path_controller()->get_position_on_path();
+
+
 
     return (to_position - from_position).length() / get_my_projectile_speed();
 }

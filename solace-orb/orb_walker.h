@@ -1,14 +1,13 @@
 #pragma once
 #include "../plugin_sdk/plugin_sdk.hpp"
 constexpr float SERVER_TICKRATE = 1000.f / 30.f;
+constexpr float SERVER_TICK_INTERVAL = 1.f / (1000.f / 30.f);
 class orb_walker
 {
     float m_last_order_time = 0.f;
     bool m_has_moved_since_last = true;
     float m_last_attack_time = 0.f;
     float m_last_move_time = 0.f;
-    float attack_delay_on_attack = 0.f;
-    float attack_cast_delay_on_attack = 0.f;
     float m_move_timer = 0.f;
     float m_rand_time = 0.f;
     bool m_can_move = true;
@@ -19,6 +18,8 @@ class orb_walker
     game_object_script m_target = {};
 
 public:
+    float attack_delay_on_attack = 0.f;
+    float attack_cast_delay_on_attack = 0.f;
     bool enabled = false;
     vector m_move_pos;
     uintptr_t id;

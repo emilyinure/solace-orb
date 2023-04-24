@@ -42,7 +42,7 @@ bool harass()
 }
 bool reset_auto_attack_timer()
 {
-
+    
     return orb.reset_auto_attack_timer();
 }
 game_object_script get_target()
@@ -66,7 +66,13 @@ float get_last_move_time()
 }
 float get_my_projectile_speed()
 {
+    if (myhero->get_champion() == champion_id::Aphelios)
+    {
+        // ApheliosCalibrumManager
+        // ApheliosGravitumManager
 
+    }
+    
     return orb.get_my_projectile_speed();
 }
 bool can_attack()
@@ -162,12 +168,24 @@ void on_update()
         return;
     //if (!orb.enabled)
     //{
-        orb.combo_mode();
-        orb.last_hit_mode();
-        orb.lane_clear_mode();
-        orb.mixed_mode();
+    orb.combo_mode();
+    orb.last_hit_mode();
+    orb.lane_clear_mode();
+    orb.mixed_mode();
     //}
     orb.orbwalk(orb.get_target(), orb.m_move_pos);
+}
+
+void on_process_spellcast(game_object_script sender, spell_instance_script spell)
+{
+    if (sender && spell && sender->get_id() == myhero->get_id()) 
+    {
+        console->print(__FUNCTION__);
+        
+        orb.reset_auto_attack_timer();
+        orb.attack_delay_on_attack = spell->do_cast_time();
+        orb.attack_cast_delay_on_attack = spell->get_attack_cast_delay();
+    }
 }
 
 void min_move_delay_changed(TreeEntry* tree)
@@ -227,6 +245,7 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
     event_handler<events::on_env_draw>::add_callback(on_draw);
     event_handler<events::on_preupdate>::add_callback(on_preupdate, event_prority::highest);
     event_handler<events::on_update>::add_callback(on_update);
+    event_handler<events::on_process_spell_cast>::add_callback(on_process_spellcast);
     orb.id = orbwalker->add_orbwalker_callback(
         "solace-orb beta", last_hit_mode, mixed_mode, lane_clear_mode, combo_mode, flee_mode, none_mode, harass,
         reset_auto_attack_timer, get_target, get_last_target, get_last_aa_time, get_last_move_time,
