@@ -196,13 +196,13 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
         float color[4] = {62.f, 214.f, 148.f, 255.f};
         settings::drawings::color = drawings_tab->add_colorpick("solace.orb.drawings.color", "Color", color, true);
         settings::drawings::glow_inner_size =
-            drawings_tab->add_slider("solace.orb.humanizer.glowinnersize", "Glow Inner Size", 10, 0, 100);
+            drawings_tab->add_slider("solace.orb.humanizer.glowinnersize", "Glow Inner Size", 12, 0, 100);
         settings::drawings::glow_inner_strength =
-            drawings_tab->add_slider("solace.orb.humanizer.glowinnerstrength", "Glow Inner Strength", 10, 0, 100);
+            drawings_tab->add_slider("solace.orb.humanizer.glowinnerstrength", "Glow Inner Strength", 95, 0, 100);
         settings::drawings::glow_outer_size =
-            drawings_tab->add_slider("solace.orb.humanizer.glowoutersize", "Glow Outer Size", 10, 0, 100);
+            drawings_tab->add_slider("solace.orb.humanizer.glowoutersize", "Glow Outer Size", 0, 0, 100);
         settings::drawings::glow_outer_strength =
-            drawings_tab->add_slider("solace.orb.humanizer.glowouterstrength", "Glow Outer Strength", 10, 0, 100);
+            drawings_tab->add_slider("solace.orb.humanizer.glowouterstrength", "Glow Outer Strength", 0, 0, 100);
     }
 
     
