@@ -240,7 +240,7 @@ bool orb_walker::should_wait() // idrk what this is for lol
     float game_time = gametime->get_time() + get_ping();
     if (game_time <= m_last_attack_time)
         return true;
-    return game_time > m_last_attack_time + myhero->get_attack_cast_delay();
+    return game_time > m_last_attack_time + attack_cast_delay_on_attack;
 }
 
 std::uint32_t orb_walker::get_orb_state()
@@ -260,23 +260,17 @@ game_object_script orb_walker::get_last_target()
 
 float orb_walker::get_last_aa_time()
 {
-    console->print(__FUNCTION__);
     return m_last_attack_time;
-    return false;
 }
 
 float orb_walker::get_last_move_time()
 {
-    console->print(__FUNCTION__);
     return m_last_move_time;
-    return false;
 }
 
 float orb_walker::get_my_projectile_speed()
 {
-    return myhero->get_auto_attack()->MissileSpeed() ;
-    console->print(__FUNCTION__);
-    return false;
+    return myhero->get_auto_attack()->MissileSpeed();
 }
 
 float orb_walker::get_projectile_travel_time(const game_object_script &to)
@@ -480,7 +474,6 @@ bool orb_walker::last_hit_mode()
         }
         enabled = true;
         return true;
-        // console->print(__FUNCTION__);
     }
     return false;
 }

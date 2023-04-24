@@ -180,7 +180,6 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
 {
     if (sender && spell && sender->get_id() == myhero->get_id()) 
     {
-        console->print(__FUNCTION__);
         
         orb.reset_auto_attack_timer();
         orb.attack_delay_on_attack = spell->do_cast_time();
