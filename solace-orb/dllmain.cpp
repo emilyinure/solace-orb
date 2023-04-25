@@ -180,10 +180,19 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
 {
     if (sender && spell && sender->get_id() == myhero->get_id()) 
     {
-        
         orb.reset_auto_attack_timer();
-        orb.attack_delay_on_attack = spell->do_cast_time();
-        orb.attack_cast_delay_on_attack = spell->get_attack_cast_delay();
+        if (strstr(spell->get_spell_data()->get_name_cstr(),myhero->get_auto_attack()->get_name_cstr()))
+        {
+            orb.m_last_attack_time = spell->cast_start_time();
+            orb.m_attack_delay_on_attack = spell->get_attack_delay();
+            orb.attack_cast_delay_on_attack = spell->get_attack_cast_delay();
+        }
+        else
+        {
+            orb.m_last_attack_time = spell->cast_start_time();
+            orb.m_attack_delay_on_attack = spell->get_attack_cast_delay();
+            orb.attack_cast_delay_on_attack = spell->get_attack_cast_delay();
+        }
     }
 }
 
