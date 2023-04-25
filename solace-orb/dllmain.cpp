@@ -165,8 +165,11 @@ void on_preupdate()
 void on_update()
 {
     if (orb.id != orbwalker->get_active_orbwalker())
+    {
+        settings::main_menu->is_hidden() = true;
         return;
-    //if (!orb.enabled)
+    }
+    settings::main_menu->is_hidden() = false; // if (!orb.enabled)
     //{
     orb.combo_mode();
     orb.last_hit_mode();
@@ -215,8 +218,9 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
 {
     DECLARE_GLOBALS(plugin_sdk_good);
 
-    auto main_menu = menu->create_tab("solace.orb", "solace-orb beta");
-    const auto drawings_tab = main_menu->add_tab("solace.orb.drawings", "Drawings");
+    settings::main_menu = menu->create_tab("solace.orb", "solace-orb beta");
+    
+    const auto drawings_tab = settings::main_menu->add_tab("solace.orb.drawings", "Drawings");
     {
         settings::drawings::enable = drawings_tab->add_checkbox("solace.orb.drawings.enable", "Enable", true);
         float color[4] = {62.f, 214.f, 148.f, 255.f};
@@ -232,7 +236,7 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
     }
 
     
-    const auto bindings_tab = main_menu->add_tab("solace.orb.bindings", "Bindings");
+    const auto bindings_tab = settings::main_menu->add_tab("solace.orb.bindings", "Bindings");
     settings::bindings::last_hit =
         bindings_tab->add_hotkey("solace.orb.bindings.last_hit", "Last Hit", TreeHotkeyMode::Hold, 88, false);
     settings::bindings::lane_clear =
@@ -242,13 +246,15 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
     settings::bindings::auto_space =
         bindings_tab->add_hotkey("solace.orb.bindings.autospace", "Auto Space", TreeHotkeyMode::Hold, 5, false);
 
-    const auto humanizer_tab = main_menu->add_tab("solace.orb.humanizer", "Humanizer");
+    const auto humanizer_tab = settings::main_menu->add_tab("solace.orb.humanizer", "Humanizer");
     settings::humanizer::min_move_delay =
         humanizer_tab->add_slider("solace.orb.humanizer.minmovedelay", "Minimum Move Delay", 50, 40, 1000);
     settings::humanizer::min_move_delay->add_property_change_callback(min_move_delay_changed);
     settings::humanizer::max_move_delay =
         humanizer_tab->add_slider("solace.orb.humanizer.maxmovedelay", "Maximum Move Delay", 80, 40, 1000);
     settings::humanizer::max_move_delay->add_property_change_callback(max_move_delay_changed);
+    settings::main_menu->add_separator("solace.orb.sep", "Message me on discord with issues");
+    settings::main_menu->add_separator("solace.orb.sep2", "emily#4986");
 
     event_handler<events::on_env_draw>::add_callback(on_draw);
     event_handler<events::on_preupdate>::add_callback(on_preupdate, event_prority::highest);

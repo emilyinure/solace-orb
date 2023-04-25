@@ -2,6 +2,7 @@
 #include "../plugin_sdk/plugin_sdk.hpp"
 namespace settings
 {
+    inline TreeTab* main_menu;
     namespace drawings
     {
         inline TreeEntry* enable;
