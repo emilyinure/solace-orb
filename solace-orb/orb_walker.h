@@ -2,6 +2,12 @@
 #include "../plugin_sdk/plugin_sdk.hpp"
 constexpr float SERVER_TICKRATE = 1000.f / 30.f;
 constexpr float SERVER_TICK_INTERVAL = 1.f / (1000.f / 30.f);
+
+struct cast_info {
+    float end_cast = 0.f;
+    float end_attack = 0.f;
+};
+
 class orb_walker
 {
     bool m_has_moved_since_last = true;
@@ -13,11 +19,18 @@ class orb_walker
     uint32_t m_orb_state;
     game_object_script m_last_target = {};
     game_object_script m_target = {};
+    std::vector < cast_info > spells_casting = {};
+    float m_last_attack_time = 0.f;
+
+    float next_attack_time = 0.f;
+    float finish_cast_time = 0.f;
 
 public:
-    float m_attack_delay_on_attack = 0.f;
-    float attack_cast_delay_on_attack = 0.f;
-    float m_last_attack_time = 0.f;
+    float m_last_left_attack = -1.f;
+    int m_double_attack;
+
+    bool is_double_attack = false;
+    std::unordered_map<int, TreeEntry*> m_blacklisted_champs;
     bool enabled = false;
     vector m_move_pos;
     uintptr_t id;
@@ -39,6 +52,7 @@ public:
     bool space_enemy_champs();
     bool find_champ_target_special();
     float get_ping();
+    void add_cast(float cast_start, float end_cast, float end_attack);
     bool combo_mode();
     bool flee_mode();
     bool none_mode();

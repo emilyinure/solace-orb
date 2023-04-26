@@ -11,6 +11,11 @@ namespace settings
         inline TreeEntry* glow_inner_strength;
         inline TreeEntry* glow_outer_size;
         inline TreeEntry* glow_outer_strength;
+    } // namespace drawings
+
+    namespace spacing
+    {
+        inline TreeEntry* space_local;
     }
 
     namespace bindings
@@ -26,6 +31,6 @@ namespace settings
     {
         inline TreeEntry* min_move_delay;
         inline TreeEntry* max_move_delay;
-    }
+    } // namespace humanizer
 
 } // namespace settings

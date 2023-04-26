@@ -178,24 +178,45 @@ void on_update()
     //}
     orb.orbwalk(orb.get_target(), orb.m_move_pos);
 }
-
+float last_cast = 0.f;
 void on_process_spellcast(game_object_script sender, spell_instance_script spell)
 {
     if (sender && spell && sender->get_id() == myhero->get_id()) 
     {
-        orb.reset_auto_attack_timer();
-        if (strstr(spell->get_spell_data()->get_name_cstr(),myhero->get_auto_attack()->get_name_cstr()))
+        float cast_start = gametime->get_prec_time();
+
+        float end_cast;
+        float end_attack;
+        
+        console->print(spell->get_spell_data()->get_name_cstr());
+        auto name = spell->get_spell_data()->get_name_cstr();
+        if (strstr(name, "Attack"))
         {
-            orb.m_last_attack_time = spell->cast_start_time();
-            orb.m_attack_delay_on_attack = spell->get_attack_delay();
-            orb.attack_cast_delay_on_attack = spell->get_attack_cast_delay();
+            last_cast = cast_start;
+            end_attack = spell->get_attack_delay();
+            end_cast = spell->get_attack_cast_delay();
+            if (sender->get_champion() == champion_id::Akshan || sender->get_champion() == champion_id::Sett)
+            {
+                if (!strcmp(name, "SettBasicAttack") || !strcmp(name, "SettBasicAttack3"))
+                {
+                    orb.m_last_left_attack = gametime->get_prec_time();
+                    orb.m_double_attack = 1;
+                }
+                else
+                {
+                    orb.m_last_left_attack = -1.f;
+                    orb.m_double_attack = 2;
+                }
+                orb.add_cast(cast_start, end_cast, end_cast);
+                return;
+            }
         }
         else
         {
-            orb.m_last_attack_time = spell->cast_start_time();
-            orb.m_attack_delay_on_attack = spell->get_attack_cast_delay();
-            orb.attack_cast_delay_on_attack = spell->get_attack_cast_delay();
+            end_cast = spell->get_attack_cast_delay();
+            end_attack = spell->get_attack_cast_delay();
         }
+        orb.add_cast(cast_start, end_cast, end_attack);
     }
 }
 
@@ -246,6 +267,20 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
     settings::bindings::auto_space =
         bindings_tab->add_hotkey("solace.orb.bindings.autospace", "Auto Space", TreeHotkeyMode::Hold, 5, false);
 
+    const auto spacing_tab = settings::main_menu->add_tab("solace.orb.spacing", "Spacing");
+    {
+        settings::spacing::space_local =
+            spacing_tab->add_checkbox("solace.orb.spacing.spacelocal", "Space Local AA Range", false);
+        auto blacklist_tab = spacing_tab->add_tab("solace.orb.spacing.blacklist", "Blacklist");
+        std::string temp = "solace.orb.spacing.blacklist.";
+        for (auto& i : entitylist->get_enemy_heroes())
+        {
+            orb.m_blacklisted_champs[i->get_network_id()] =
+                blacklist_tab->add_checkbox((temp + std::to_string(i->get_network_id())).c_str(), i->get_name_cstr(), false, false);
+        }
+    }
+    
+
     const auto humanizer_tab = settings::main_menu->add_tab("solace.orb.humanizer", "Humanizer");
     settings::humanizer::min_move_delay =
         humanizer_tab->add_slider("solace.orb.humanizer.minmovedelay", "Minimum Move Delay", 50, 40, 1000);
@@ -256,9 +291,11 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
     settings::main_menu->add_separator("solace.orb.sep", "Message me on discord with issues");
     settings::main_menu->add_separator("solace.orb.sep2", "emily#4986");
 
+    orb.is_double_attack = myhero->get_champion() == champion_id::Akshan || myhero->get_champion() == champion_id::Sett;
+
     event_handler<events::on_env_draw>::add_callback(on_draw);
     event_handler<events::on_preupdate>::add_callback(on_preupdate, event_prority::highest);
-    event_handler<events::on_update>::add_callback(on_update);
+    event_handler<events::on_update>::add_callback(on_update, event_prority::highest);
     event_handler<events::on_process_spell_cast>::add_callback(on_process_spellcast);
     orb.id = orbwalker->add_orbwalker_callback(
         "solace-orb beta", last_hit_mode, mixed_mode, lane_clear_mode, combo_mode, flee_mode, none_mode, harass,

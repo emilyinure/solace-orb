@@ -6,6 +6,22 @@ float orb_walker::get_ping()
     return ping->get_ping() / 1000.f;
 };
 
+void orb_walker::add_cast(float cast_start, float end_cast, float end_attack)
+{
+    // console->print(std::to_string(end_cast).c_str());
+    end_cast += cast_start;
+    end_attack += cast_start;
+
+    finish_cast_time = end_cast;
+    if (cast_start < finish_cast_time)
+    {
+        next_attack_time = end_attack;
+        return;
+    }
+    if (end_attack > next_attack_time)
+        next_attack_time = end_attack;
+}
+
 float orb_walker::get_auto_attack_range(game_object* from, game_object* to)
 {
     if (from == nullptr)
@@ -132,7 +148,7 @@ bool orb_walker::is_in_auto_attack_range(game_object* from, game_object* to, flo
         attack_range = fmaxf(attack_range, get_auto_attack_range(to, from) - 5.f);
     }
 
-    return from_position.distance_squared(to_position) < attack_range * attack_range;
+    return from_position.distance_squared(to_position) < attack_range * attack_range; 
 }
 
 bool orb_walker::space_enemy_champs()
@@ -143,6 +159,12 @@ bool orb_walker::space_enemy_champs()
     {
         if (target_filter(i.get()))
             continue;
+        
+        auto id = i->get_network_id();
+        auto num = m_blacklisted_champs.count(id);
+        if (num && m_blacklisted_champs.at(id)->get_bool())
+            continue;
+
         vector to_position = i->get_position();
         vector from_position = myhero->get_position();
 
@@ -154,28 +176,26 @@ bool orb_walker::space_enemy_champs()
 
         auto diff = (to_position - from_position).normalized();
 
-        float space = i->get_move_speed() * get_ping();
+        float space = 0.f;
         float time = gametime->get_time() + get_ping();
-        float attack_time = m_last_attack_time + myhero->get_attack_delay();
-        float move_time = m_last_attack_time + myhero->get_attack_cast_delay();
-        bool should_range = false;
+        float attack_time = next_attack_time;
+        float move_time = finish_cast_time;
         if (move_time <= time && attack_time > time)
         {
             float new_time = (attack_time - move_time) / 2.f;
             space += fabsf(new_time + get_ping()) * myhero->get_move_speed();
-            should_range = true;
         }
-        //if (attack_time > time && time > move_time)
+        // if (attack_time > time && time > move_time)
         //{
-        //    float new_time = (attack_time - move_time) / 2.f;
-        //    float delta_time = (attack_time - time);
+        //     float new_time = (attack_time - move_time) / 2.f;
+        //     float delta_time = (attack_time - time);
         //
-        //    delta_time = new_time - fabsf(delta_time - new_time);
+        //     delta_time = new_time - fabsf(delta_time - new_time);
         //
-        //    space += fabsf(delta_time) * myhero->get_move_speed();
-        //}
+        //     space += fabsf(delta_time) * myhero->get_move_speed();
+        // }
 
-        if (is_in_auto_attack_range(i.get(), myhero.get(), space, !should_range))
+        if (is_in_auto_attack_range(i.get(), myhero.get(), space, settings::spacing::space_local->get_bool()))
         {
             if (math::IsZero(diff.length()))
             {
@@ -194,31 +214,29 @@ bool orb_walker::space_enemy_champs()
 
 bool orb_walker::find_champ_target_special()
 {
-    float lowest_health_after_attack = -1.f;
-    bool ret = false;
+    std::vector<game_object_script> targets = {};
     for (auto& i : entitylist->get_enemy_heroes())
     {
         if (target_filter(i.get()))
             continue;
         if (is_in_auto_attack_range(myhero.get(), i.get()))
         {
-            auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
-            float after = i->get_real_health() - damage;
-            if (after < lowest_health_after_attack || lowest_health_after_attack < 0.5f)
-            {
-                lowest_health_after_attack = fmaxf(0.f, after);
-                set_orbwalking_target(i);
-                ret = true;
-            }
+            targets.push_back(i);
         }
     }
-    return ret;
+    if (auto target = target_selector->get_target(targets, damage_type::physical))
+    {
+        set_orbwalking_target(target);
+        return true;
+    }
+    return false;
 }
 
 bool orb_walker::can_attack()
 {
-    float game_time = gametime->get_time() + get_ping();
-    return game_time > m_last_attack_time + m_attack_delay_on_attack;
+    float game_time = gametime->get_prec_time() + get_ping();
+    float delta_time = game_time - next_attack_time;
+    return delta_time > 0.f;
 }
 
 bool orb_walker::can_move(float extra_windup)
@@ -226,8 +244,8 @@ bool orb_walker::can_move(float extra_windup)
     if (myhero->is_winding_up())
         return false;
 
-    float game_time = gametime->get_time() + get_ping();
-    return game_time > m_last_attack_time + attack_cast_delay_on_attack + extra_windup;
+    float game_time = gametime->get_prec_time() + get_ping();
+    return game_time > finish_cast_time + extra_windup;
 }
 
 bool orb_walker::should_wait() // idrk what this is for lol
@@ -235,10 +253,8 @@ bool orb_walker::should_wait() // idrk what this is for lol
     if (myhero->is_winding_up())
         return true;
 
-    float game_time = gametime->get_time() + get_ping();
-    if (game_time <= m_last_attack_time)
-        return true;
-    return game_time > m_last_attack_time + attack_cast_delay_on_attack;
+    float game_time = gametime->get_prec_time();
+    return game_time > finish_cast_time;
 }
 
 std::uint32_t orb_walker::get_orb_state()
@@ -271,7 +287,7 @@ float orb_walker::get_my_projectile_speed()
     return myhero->get_auto_attack()->MissileSpeed();
 }
 
-float orb_walker::get_projectile_travel_time(const game_object_script &to)
+float orb_walker::get_projectile_travel_time(const game_object_script& to)
 {
     vector to_position = to->get_position();
     vector from_position = myhero->get_position();
@@ -309,9 +325,10 @@ void orb_walker::set_orbwalking_point(vector const& pos)
 bool orb_walker::reset_auto_attack_timer()
 {
     m_rand_time = 0.f;
-    m_last_attack_time = gametime->get_time() + get_ping();
-    m_attack_delay_on_attack = 0;
-    attack_cast_delay_on_attack = 0;
+
+    finish_cast_time = 0;
+    next_attack_time = 0;
+
     return false;
 }
 
@@ -404,36 +421,29 @@ bool orb_walker::find_ward_target()
 
 bool orb_walker::find_champ_target() // needs to be reworked to have certain priority options
 {
-    bool ret = false;
-    float lowest_health_after_attack = -1.f;
+    std::vector<game_object_script> targets = {};
     for (auto& i : entitylist->get_enemy_heroes())
     {
         if (target_filter(i.get()))
             continue;
-
         if (is_in_auto_attack_range(myhero.get(), i.get()))
         {
-            auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
-            float after = i->get_real_health() - damage;
-            if (after < lowest_health_after_attack || lowest_health_after_attack < 0.5f)
-            {
-                lowest_health_after_attack = fmaxf(after, 0.f);
-                set_orbwalking_target(i);
-                ret = true;
-            }
+            targets.push_back(i);
         }
     }
-    return ret;
+    if (auto target = target_selector->get_target(targets, damage_type::physical))
+    {
+        set_orbwalking_target(target);
+        return true;
+    }
+    return false;
 }
 
 bool orb_walker::find_other_targets()
 {
-    return find_jungle_target() ||
-           find_champ_target() ||
+    return find_jungle_target() || find_champ_target() ||
            find_ward_target(); // sort of abusing short cicuiting to keep code clean and not waste calls aswell
 }
-
-
 
 bool orb_walker::last_hit_mode()
 {
@@ -455,7 +465,7 @@ bool orb_walker::last_hit_mode()
                 float proj_travel_time = get_projectile_travel_time(i);
                 auto predicted_health_when_attack = health_prediction->get_health_prediction(
                     i, get_ping() + myhero->get_attack_cast_delay() + proj_travel_time);
-                
+
                 if (predicted_health_when_attack <= damage && predicted_health_when_attack > 0.f)
                 {
                     set_orbwalking_target(i);
@@ -532,7 +542,6 @@ bool orb_walker::mixed_mode()
                 }
             }
         }
-
 
         if (!found_to_wait && !found_last_hit && find_champ_target_special())
             m_orb_state = orbwalker_state_flags::combo;
@@ -667,35 +676,41 @@ void orb_walker::orbwalk(game_object_script target, vector& pos)
         return;
 
     bool found = false;
-    if (target && target->is_valid())
+    bool valid_target = target && target->is_valid();
+    if (valid_target)
     {
         if (m_can_attack && can_attack())
         {
             bool should_attack = true;
 
             event_handler<events::on_before_attack_orbwalker>::invoke(target, &should_attack);
-            
+
             if (should_attack)
             {
                 found = true;
                 m_move_timer = 0.f;
                 myhero->issue_order(target, true, false);
+                float cast_start = gametime->get_prec_time();
 
+                float end_cast = myhero->get_attack_cast_delay();
+                float end_attack = myhero->get_attack_delay();
+                add_cast(cast_start, end_cast, end_attack);
                 event_handler<events::on_after_attack_orbwalker>::invoke(target);
 
                 m_has_moved_since_last = false;
                 m_rand_time = 0.f;
-                m_last_attack_time = gametime->get_time() + get_ping() + (1.f/SERVER_TICKRATE);
-                m_attack_delay_on_attack = myhero->get_attack_delay();
-                attack_cast_delay_on_attack = myhero->get_attack_cast_delay();
+                m_last_attack_time = gametime->get_time();
             }
         }
     }
 
-    if (m_can_move && can_move(0) && !found)
+    if (m_last_left_attack + 2.f < gametime->get_prec_time())
+        m_double_attack = 0;
+
+    if (m_can_move && (m_double_attack != 1 || !valid_target) && can_move(SERVER_TICK_INTERVAL) && !found)
     {
         move_to(pos);
         m_has_moved_since_last = true;
-        m_last_move_time = gametime->get_time() + get_ping();
+        m_last_move_time = gametime->get_prec_time();
     }
 }
