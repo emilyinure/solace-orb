@@ -24,6 +24,7 @@ class orb_walker
 
     float next_attack_time = 0.f;
     float finish_cast_time = 0.f;
+    float can_move_until = -1.f;
 
 public:
     float m_last_left_attack = -1.f;
@@ -34,6 +35,11 @@ public:
     bool enabled = false;
     vector m_move_pos;
     uintptr_t id;
+
+    void set_can_move_until(float time)
+    {
+        can_move_until = time;
+    }
 
     float get_auto_attack_range(game_object* from, game_object* to = nullptr);
     bool is_in_auto_attack_range(game_object* from, game_object* to, float additional, bool spacing);

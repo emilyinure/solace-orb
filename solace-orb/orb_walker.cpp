@@ -241,11 +241,11 @@ bool orb_walker::can_attack()
 
 bool orb_walker::can_move(float extra_windup)
 {
-    if (myhero->is_winding_up())
+    float game_time = gametime->get_prec_time() + get_ping();
+    if (myhero->is_winding_up() && !(game_time < can_move_until))
         return false;
 
-    float game_time = gametime->get_prec_time() + get_ping();
-    return game_time > finish_cast_time + extra_windup;
+    return (game_time > finish_cast_time + extra_windup) || (game_time < can_move_until);
 }
 
 bool orb_walker::should_wait() // idrk what this is for lol

@@ -188,7 +188,7 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
         float end_cast;
         float end_attack;
         
-        //console->print(spell->get_spell_data()->get_name_cstr());
+        console->print(spell->get_spell_data()->get_name_cstr());
         auto name = spell->get_spell_data()->get_name_cstr();
         if (spell->is_auto_attack())
         {
@@ -215,6 +215,11 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
         {
             end_cast = spell->get_attack_cast_delay();
             end_attack = spell->get_attack_cast_delay();
+
+            if (!strcmp(name, "KaisaE"))
+            {
+                orb.set_can_move_until(end_cast + cast_start);
+            }
         }
         orb.add_cast(cast_start, end_cast, end_attack);
     }
