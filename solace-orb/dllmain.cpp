@@ -188,9 +188,9 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
         float end_cast;
         float end_attack;
         
-        console->print(spell->get_spell_data()->get_name_cstr());
+        //console->print(spell->get_spell_data()->get_name_cstr());
         auto name = spell->get_spell_data()->get_name_cstr();
-        if (strstr(name, "Attack"))
+        if (spell->is_auto_attack())
         {
             last_cast = cast_start;
             end_attack = spell->get_attack_delay();

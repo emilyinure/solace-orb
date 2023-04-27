@@ -563,9 +563,6 @@ bool orb_walker::lane_clear_mode()
         set_orbwalking_point(pos);
         enabled = true;
 
-        if (find_turret_target() || find_inhibitor_target() || find_nexus_target())
-            return true;
-
         for (auto& i : entitylist->get_enemy_minions()) // lane clear logic
         {
             if (target_filter(i.get()))
@@ -574,42 +571,52 @@ bool orb_walker::lane_clear_mode()
             if (is_in_auto_attack_range(myhero.get(), i.get()))
             {
                 auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
+                auto original_health = i->get_health();
 
                 float proj_travel_time = get_projectile_travel_time(i);
-                auto predicted_health_when_attack = health_prediction->get_health_prediction(
-                    i, get_ping() + myhero->get_attack_cast_delay() + proj_travel_time);
-                if (predicted_health_when_attack <= damage) // can we last hit them
+                float pred_time = get_ping() + myhero->get_attack_cast_delay() + proj_travel_time;
+                auto predicted_health_when_attack = health_prediction->get_health_prediction(i, pred_time);
+                if (predicted_health_when_attack < damage) // can we last hit them
                 {
                     set_orbwalking_target(i);
                     found_last_hit = true;
-                    auto predicted_health_when_attack = health_prediction->get_health_prediction(
-                        i, get_ping() + myhero->get_attack_delay() * 2 + myhero->get_attack_cast_delay() * 2 +
-                               proj_travel_time);
+
+                    pred_time += myhero->get_attack_cast_delay() + myhero->get_attack_delay();
+                    auto predicted_health_when_attack = health_prediction->get_health_prediction(i, pred_time);
                     if (predicted_health_when_attack <= 0.f) // will they be dead if we dont attack now
                         break;
                 }
                 else
                 {
-                    auto predicted_health_when_next_attack = health_prediction->get_health_prediction(
-                        i, get_ping() + myhero->get_attack_delay() * 2 + myhero->get_attack_cast_delay() * 2 +
-                               proj_travel_time);
-
                     if (found_last_hit)
                         continue;
                     if (found_to_wait) // already waiting on something else, in the future ill priorities certain
                                        // minions
                         continue;
-                    if (predicted_health_when_next_attack <= 0) // they will die before we can a second time, lets wait
+
+                    pred_time += myhero->get_attack_cast_delay() + myhero->get_attack_delay();
+                    auto predicted_health_when_next_attack = health_prediction->get_health_prediction(i, pred_time);
+                    
+
+                    if (fabsf(original_health - predicted_health_when_next_attack) > 0.5f)
                     {
-                        found_to_wait = true; // lets wait
-                        set_orbwalking_target(nullptr);
-                        continue;
+                        predicted_health_when_next_attack -= damage;
+
+                        if (predicted_health_when_next_attack < damage)
+                        {
+                            found_to_wait = true; // lets wait
+                            set_orbwalking_target(nullptr);
+                            continue;
+                        }
                     }
                 }
                 set_orbwalking_target(i);
             }
         }
-
+        if (!found_last_hit)
+        {
+            find_turret_target() || find_inhibitor_target() || find_nexus_target();
+        }
         if (!get_target() && !found_to_wait)
         {
             find_other_targets();
@@ -690,11 +697,8 @@ void orb_walker::orbwalk(game_object_script target, vector& pos)
                 found = true;
                 m_move_timer = 0.f;
                 myhero->issue_order(target, true, false);
-                float cast_start = gametime->get_prec_time();
-
-                float end_cast = myhero->get_attack_cast_delay();
-                float end_attack = myhero->get_attack_delay();
-                add_cast(cast_start, end_cast, end_attack);
+                if (m_double_attack == 0)
+                    m_double_attack = 1;
                 event_handler<events::on_after_attack_orbwalker>::invoke(target);
 
                 m_has_moved_since_last = false;
