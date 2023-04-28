@@ -25,7 +25,7 @@ class orb_walker
     float next_attack_time = 0.f;
     float finish_cast_time = 0.f;
     float can_move_until = -1.f;
-    bool wait_for_cast = false;
+    float wait_for_cast = 0.f;
 
 public:
     float m_last_left_attack = -1.f;

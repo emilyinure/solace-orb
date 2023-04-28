@@ -11,7 +11,7 @@ void orb_walker::add_cast(float cast_start, float end_cast, float end_attack)
     // console->print(std::to_string(end_cast).c_str());
     end_cast += cast_start - get_ping();
     end_attack += cast_start - get_ping();
-    wait_for_cast = false;
+    wait_for_cast = 0;
 
     finish_cast_time = end_cast;
     if (cast_start < finish_cast_time)
@@ -235,21 +235,21 @@ bool orb_walker::find_champ_target_special()
 
 bool orb_walker::can_attack()
 {
-    if (wait_for_cast)
-        return false;
     if (myhero->is_winding_up())
         return false;
     float game_time = gametime->get_prec_time() + get_ping();
+    if (game_time < wait_for_cast)
+        return false;
     float delta_time = game_time - next_attack_time;
     return delta_time > 0.f;
 }
 
 bool orb_walker::can_move(float extra_windup)
 {
-    if (wait_for_cast)
-        return false;
     float game_time = gametime->get_prec_time() + get_ping();
     if (myhero->is_winding_up() && !(game_time < can_move_until))
+        return false;
+    if (game_time < wait_for_cast)
         return false;
 
     return (game_time > finish_cast_time + extra_windup) || (game_time < can_move_until);
@@ -690,10 +690,11 @@ void orb_walker::orbwalk(game_object_script target, vector& pos)
         return;
     if (evade->is_evading())
     {
-        wait_for_cast = false;
+        wait_for_cast = 0;
         return;
     }
-
+    if (wait_for_cast > 0.f)
+        console->print("ww");
     bool found = false;
     bool valid_target = target && target->is_valid();
     if (valid_target)
@@ -712,7 +713,7 @@ void orb_walker::orbwalk(game_object_script target, vector& pos)
                 if (m_double_attack == 0)
                     m_double_attack = 1;
                 event_handler<events::on_after_attack_orbwalker>::invoke(target);
-                wait_for_cast = true;
+                wait_for_cast = get_ping();
                 //next_attack_time = end_attack;
 
                 m_has_moved_since_last = false;
