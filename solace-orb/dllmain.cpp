@@ -188,7 +188,6 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
         float end_cast;
         float end_attack;
         
-        console->print(spell->get_spell_data()->get_name_cstr());
         auto name = spell->get_spell_data()->get_name_cstr();
         if (spell->is_auto_attack())
         {
@@ -301,7 +300,7 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
     event_handler<events::on_env_draw>::add_callback(on_draw);
     event_handler<events::on_preupdate>::add_callback(on_preupdate, event_prority::highest);
     event_handler<events::on_update>::add_callback(on_update, event_prority::highest);
-    event_handler<events::on_process_spell_cast>::add_callback(on_process_spellcast);
+    event_handler<events::on_process_spell_cast>::add_callback(on_process_spellcast, event_prority::highest);
     orb.id = orbwalker->add_orbwalker_callback(
         "solace-orb beta", last_hit_mode, mixed_mode, lane_clear_mode, combo_mode, flee_mode, none_mode, harass,
         reset_auto_attack_timer, get_target, get_last_target, get_last_aa_time, get_last_move_time,

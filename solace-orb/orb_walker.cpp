@@ -9,8 +9,9 @@ float orb_walker::get_ping()
 void orb_walker::add_cast(float cast_start, float end_cast, float end_attack)
 {
     // console->print(std::to_string(end_cast).c_str());
-    end_cast += cast_start;
-    end_attack += cast_start;
+    end_cast += cast_start - get_ping();
+    end_attack += cast_start - get_ping();
+    wait_for_cast = false;
 
     finish_cast_time = end_cast;
     if (cast_start < finish_cast_time)
@@ -177,13 +178,13 @@ bool orb_walker::space_enemy_champs()
         auto diff = (to_position - from_position).normalized();
 
         float space = 0.f;
-        float time = gametime->get_time() + get_ping();
+        float time = gametime->get_prec_time() + get_ping();
         float attack_time = next_attack_time;
         float move_time = finish_cast_time;
         if (move_time <= time && attack_time > time)
         {
             float new_time = (attack_time - move_time) / 2.f;
-            space += fabsf(new_time + get_ping()) * myhero->get_move_speed();
+            space += fabsf(new_time) * myhero->get_move_speed();
         }
         // if (attack_time > time && time > move_time)
         //{
@@ -234,6 +235,10 @@ bool orb_walker::find_champ_target_special()
 
 bool orb_walker::can_attack()
 {
+    if (wait_for_cast)
+        return false;
+    if (myhero->is_winding_up())
+        return false;
     float game_time = gametime->get_prec_time() + get_ping();
     float delta_time = game_time - next_attack_time;
     return delta_time > 0.f;
@@ -241,6 +246,8 @@ bool orb_walker::can_attack()
 
 bool orb_walker::can_move(float extra_windup)
 {
+    if (wait_for_cast)
+        return false;
     float game_time = gametime->get_prec_time() + get_ping();
     if (myhero->is_winding_up() && !(game_time < can_move_until))
         return false;
@@ -250,10 +257,12 @@ bool orb_walker::can_move(float extra_windup)
 
 bool orb_walker::should_wait() // idrk what this is for lol
 {
+    if (wait_for_cast)
+        return true;
     if (myhero->is_winding_up())
         return true;
 
-    float game_time = gametime->get_prec_time();
+    float game_time = gametime->get_prec_time() + get_ping();
     return game_time > finish_cast_time;
 }
 
@@ -660,7 +669,7 @@ bool orb_walker::harass()
 
 void orb_walker::move_to(vector& pos)
 {
-    if (m_move_timer + m_rand_time > gametime->get_time())
+    if (m_move_timer + m_rand_time > gametime->get_prec_time())
         return;
 
     int min_time = settings::humanizer::min_move_delay->get_int();
@@ -671,7 +680,7 @@ void orb_walker::move_to(vector& pos)
     int new_time = (rand() % (delta_time + 1)) + min_time;
 
     m_rand_time = new_time / 1000.f;
-    m_move_timer = gametime->get_time();
+    m_move_timer = gametime->get_prec_time();
     myhero->issue_order(pos, true, false);
 }
 
@@ -680,7 +689,10 @@ void orb_walker::orbwalk(game_object_script target, vector& pos)
     if (!enabled)
         return;
     if (evade->is_evading())
+    {
+        wait_for_cast = false;
         return;
+    }
 
     bool found = false;
     bool valid_target = target && target->is_valid();
@@ -700,10 +712,12 @@ void orb_walker::orbwalk(game_object_script target, vector& pos)
                 if (m_double_attack == 0)
                     m_double_attack = 1;
                 event_handler<events::on_after_attack_orbwalker>::invoke(target);
+                wait_for_cast = true;
+                //next_attack_time = end_attack;
 
                 m_has_moved_since_last = false;
                 m_rand_time = 0.f;
-                m_last_attack_time = gametime->get_time();
+                m_last_attack_time = gametime->get_prec_time();
             }
         }
     }
