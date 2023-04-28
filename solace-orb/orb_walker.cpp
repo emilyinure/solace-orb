@@ -9,7 +9,6 @@ float orb_walker::get_ping()
 void orb_walker::add_cast(float cast_start, float end_cast, float end_attack)
 {
     // console->print(std::to_string(end_cast).c_str());
-    console->print("attack2");
     end_cast += cast_start - get_ping();
     end_attack += cast_start - get_ping();
     wait_for_cast = 0;
@@ -713,7 +712,6 @@ void orb_walker::orbwalk(game_object_script target, vector& pos)
                 myhero->issue_order(target, true, false);
                 if (m_double_attack == 0)
                     m_double_attack = 1;
-                console->print("attack");
                 event_handler<events::on_after_attack_orbwalker>::invoke(target);
                 wait_for_cast = gametime->get_prec_time() + 0.5f;
                 //next_attack_time = end_attack;
