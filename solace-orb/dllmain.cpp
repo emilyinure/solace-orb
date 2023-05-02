@@ -212,9 +212,13 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
         }
         else
         {
+            if (strstr(name, "Summoner") || strstr(name, "Trinket"))
+            {
+                return;
+            }
+
             end_cast = spell->get_attack_cast_delay();
             end_attack = spell->get_attack_cast_delay();
-
             if (!strcmp(name, "KaisaE"))
             {
                 orb.set_can_move_until(end_cast + cast_start);
@@ -279,8 +283,8 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
         std::string temp = "solace.orb.spacing.blacklist.";
         for (auto& i : entitylist->get_enemy_heroes())
         {
-            orb.m_blacklisted_champs[i->get_network_id()] =
-                blacklist_tab->add_checkbox((temp + std::to_string(i->get_network_id())).c_str(), i->get_name_cstr(), false, false);
+            orb.m_blacklisted_champs[i->get_network_id()] = blacklist_tab->add_checkbox(
+                (temp + i->get_base_skin_name()).c_str(), i->get_base_skin_name(), false, false);
         }
     }
     
