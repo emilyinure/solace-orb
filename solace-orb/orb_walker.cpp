@@ -11,16 +11,16 @@ void orb_walker::add_cast(float cast_start, float end_cast, float end_attack)
     // console->print(std::to_string(end_cast).c_str());
     end_cast += cast_start - get_ping();
     end_attack += cast_start - get_ping();
-    wait_for_cast = 0;
+    m_wait_for_cast = 0;
 
-    finish_cast_time = end_cast;
-    if (cast_start < finish_cast_time)
+    m_finish_cast_time = end_cast;
+    if (cast_start < m_finish_cast_time)
     {
-        next_attack_time = end_attack;
+        m_next_attack_time = end_attack;
         return;
     }
-    if (end_attack > next_attack_time)
-        next_attack_time = end_attack;
+    if (end_attack > m_next_attack_time)
+        m_next_attack_time = end_attack;
 }
 
 float orb_walker::get_auto_attack_range(game_object* from, game_object* to)
@@ -179,8 +179,8 @@ bool orb_walker::space_enemy_champs()
 
         float space = 0.f;
         float time = gametime->get_prec_time() + get_ping();
-        float attack_time = next_attack_time;
-        float move_time = finish_cast_time;
+        float attack_time = m_next_attack_time;
+        float move_time = m_finish_cast_time;
         if (move_time <= time && attack_time > time)
         {
             float new_time = (attack_time - move_time) / 2.f;
@@ -238,32 +238,32 @@ bool orb_walker::can_attack()
     if (myhero->is_winding_up())
         return false;
     float game_time = gametime->get_prec_time() + get_ping();
-    if (game_time < wait_for_cast)
+    if (game_time < m_wait_for_cast)
         return false;
-    float delta_time = game_time - next_attack_time;
+    float delta_time = game_time - m_next_attack_time;
     return delta_time > 0.f;
 }
 
 bool orb_walker::can_move(float extra_windup)
 {
     float game_time = gametime->get_prec_time() + get_ping();
-    if (myhero->is_winding_up() && !(game_time < can_move_until))
+    if (myhero->is_winding_up() && !(game_time < m_can_move_until))
         return false;
-    if (game_time < wait_for_cast)
+    if (game_time < m_wait_for_cast)
         return false;
 
-    return (game_time > finish_cast_time + extra_windup) || (game_time < can_move_until);
+    return (game_time > m_finish_cast_time + extra_windup) || (game_time < m_can_move_until);
 }
 
 bool orb_walker::should_wait() // idrk what this is for lol
 {
-    if (wait_for_cast)
+    if (m_wait_for_cast)
         return true;
     if (myhero->is_winding_up())
         return true;
 
     float game_time = gametime->get_prec_time() + get_ping();
-    return game_time > finish_cast_time;
+    return game_time > m_finish_cast_time;
 }
 
 std::uint32_t orb_walker::get_orb_state()
@@ -335,8 +335,8 @@ bool orb_walker::reset_auto_attack_timer()
 {
     m_rand_time = 0.f;
 
-    finish_cast_time = 0;
-    next_attack_time = 0;
+    m_finish_cast_time = 0;
+    m_next_attack_time = 0;
 
     return false;
 }
@@ -486,7 +486,7 @@ bool orb_walker::last_hit_mode()
                 }
             }
         }
-        enabled = true;
+        m_enabled = true;
         return true;
     }
     return false;
@@ -497,11 +497,10 @@ bool orb_walker::mixed_mode()
     {
         auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
         set_orbwalking_point(pos);
-        enabled = true;
-        bool found_to_wait = false;
+        m_enabled = true;
         bool found_last_hit = false;
         set_orbwalking_target(nullptr);
-        m_orb_state = orbwalker_state_flags::lane_clear;
+        m_orb_state = orbwalker_state_flags::last_hit;
         if (find_turret_target() || find_inhibitor_target() || find_nexus_target())
             return true;
         if (!space_enemy_champs())
@@ -528,31 +527,11 @@ bool orb_walker::mixed_mode()
                         if (predicted_health_when_attack <= 0.f) // will they be dead if we dont attack now
                             break;
                     }
-                    else
-                    {
-                        auto predicted_health_when_next_attack = health_prediction->get_health_prediction(
-                            i, get_ping() + myhero->get_attack_delay() + myhero->get_attack_cast_delay() * 2 +
-                                   proj_travel_time);
-
-                        if (found_last_hit)
-                            continue;
-                        if (found_to_wait) // already waiting on something else, in the future ill priorities certain
-                                           // minions
-                            continue;
-                        if (predicted_health_when_next_attack <=
-                            0) // they will die before we can a second time, lets wait
-                        {
-                            found_to_wait = true; // lets wait
-                            set_orbwalking_target(nullptr);
-                            continue;
-                        }
-                    }
-                    set_orbwalking_target(i);
                 }
             }
         }
 
-        if (!found_to_wait && !found_last_hit && find_champ_target_special())
+        if (!found_last_hit && find_champ_target_special())
             m_orb_state = orbwalker_state_flags::combo;
         return true;
     }
@@ -570,7 +549,7 @@ bool orb_walker::lane_clear_mode()
 
         auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
         set_orbwalking_point(pos);
-        enabled = true;
+        m_enabled = true;
 
         for (auto& i : entitylist->get_enemy_minions()) // lane clear logic
         {
@@ -638,15 +617,17 @@ bool orb_walker::lane_clear_mode()
     return false;
 }
 
-bool orb_walker::combo_mode() // needs rework to account for priority
+bool orb_walker::combo_mode()
 {
     if (settings::bindings::combo->get_bool())
     {
-        set_orbwalking_target(nullptr);
-        enabled = true;
+        m_enabled = true;
         m_orb_state = orbwalker_state_flags::combo;
+        set_orbwalking_target(nullptr);
+
         auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
         set_orbwalking_point(pos);
+
         space_enemy_champs();
         find_champ_target_special();
         return true;
@@ -688,11 +669,11 @@ void orb_walker::move_to(vector& pos)
 
 void orb_walker::orbwalk(game_object_script target, vector& pos)
 {
-    if (!enabled)
+    if (!m_enabled)
         return;
     if (evade->is_evading())
     {
-        wait_for_cast = 0;
+        m_wait_for_cast = 0;
         return;
     }
     bool found = false;
@@ -713,7 +694,7 @@ void orb_walker::orbwalk(game_object_script target, vector& pos)
                 if (m_double_attack == 0)
                     m_double_attack = 1;
                 event_handler<events::on_after_attack_orbwalker>::invoke(target);
-                wait_for_cast = gametime->get_prec_time() + 0.5f;
+                m_wait_for_cast = gametime->get_prec_time() + 0.5f;
                 //next_attack_time = end_attack;
 
                 m_has_moved_since_last = false;

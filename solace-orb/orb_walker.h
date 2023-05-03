@@ -3,11 +3,6 @@
 constexpr float SERVER_TICKRATE = 1000.f / 30.f;
 constexpr float SERVER_TICK_INTERVAL = 1.f / (1000.f / 30.f);
 
-struct cast_info {
-    float end_cast = 0.f;
-    float end_attack = 0.f;
-};
-
 class orb_walker
 {
     bool m_has_moved_since_last = true;
@@ -19,27 +14,26 @@ class orb_walker
     uint32_t m_orb_state;
     game_object_script m_last_target = {};
     game_object_script m_target = {};
-    std::vector < cast_info > spells_casting = {};
     float m_last_attack_time = 0.f;
 
-    float next_attack_time = 0.f;
-    float finish_cast_time = 0.f;
-    float can_move_until = -1.f;
-    float wait_for_cast = 0.f;
+    float m_next_attack_time = 0.f;
+    float m_finish_cast_time = 0.f;
+    float m_can_move_until = 0.f;
+    float m_wait_for_cast = 0.f;
 
 public:
     float m_last_left_attack = -1.f;
     int m_double_attack;
 
-    bool is_double_attack = false;
+    bool m_is_double_attack = false;
     std::unordered_map<int, TreeEntry*> m_blacklisted_champs;
-    bool enabled = false;
+    bool m_enabled = false;
     vector m_move_pos;
-    uintptr_t id;
+    uintptr_t m_id;
 
     void set_can_move_until(float time)
     {
-        can_move_until = time - get_ping();
+        m_can_move_until = time - get_ping();
     }
 
     float get_auto_attack_range(game_object* from, game_object* to = nullptr);

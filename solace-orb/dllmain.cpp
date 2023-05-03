@@ -139,7 +139,7 @@ void on_menu()
 
 void on_draw()
 {
-    if (orb.id != orbwalker->get_active_orbwalker())
+    if (orb.m_id != orbwalker->get_active_orbwalker())
         return;
     if (myhero->is_dead())
         return;
@@ -157,14 +157,14 @@ void on_draw()
 
 void on_preupdate()
 {
-    if (orb.id != orbwalker->get_active_orbwalker())
+    if (orb.m_id != orbwalker->get_active_orbwalker())
         return;
-    orb.enabled = false;
+    orb.m_enabled = false;
 }
 
 void on_update()
 {
-    if (orb.id != orbwalker->get_active_orbwalker())
+    if (orb.m_id != orbwalker->get_active_orbwalker())
     {
         settings::main_menu->is_hidden() = true;
         return;
@@ -299,13 +299,13 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
     settings::main_menu->add_separator("solace.orb.sep", "Message me on discord with issues");
     settings::main_menu->add_separator("solace.orb.sep2", "emily#4986");
 
-    orb.is_double_attack = myhero->get_champion() == champion_id::Akshan || myhero->get_champion() == champion_id::Sett;
+    orb.m_is_double_attack = myhero->get_champion() == champion_id::Akshan || myhero->get_champion() == champion_id::Sett;
 
     event_handler<events::on_env_draw>::add_callback(on_draw);
     event_handler<events::on_preupdate>::add_callback(on_preupdate, event_prority::highest);
     event_handler<events::on_update>::add_callback(on_update, event_prority::highest);
     event_handler<events::on_process_spell_cast>::add_callback(on_process_spellcast, event_prority::highest);
-    orb.id = orbwalker->add_orbwalker_callback(
+    orb.m_id = orbwalker->add_orbwalker_callback(
         "solace-orb beta", last_hit_mode, mixed_mode, lane_clear_mode, combo_mode, flee_mode, none_mode, harass,
         reset_auto_attack_timer, get_target, get_last_target, get_last_aa_time, get_last_move_time,
         get_my_projectile_speed, can_attack, can_move, should_wait, move_to, orbwalk, set_attack, set_movement,
@@ -317,5 +317,5 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
 PLUGIN_API void on_sdk_unload()
 {
     event_handler<events::on_env_draw>::remove_handler(on_draw);
-    orbwalker->remove_orbwalker_callback(orb.id);
+    orbwalker->remove_orbwalker_callback(orb.m_id);
 }
