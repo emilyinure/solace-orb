@@ -194,7 +194,24 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
             last_cast = cast_start;
             end_attack = spell->get_attack_delay();
             end_cast = spell->get_attack_cast_delay();
-            if (sender->get_champion() == champion_id::Akshan || sender->get_champion() == champion_id::Sett)
+            if (orb.m_is_akshan)
+            {
+                if (!strcmp(name, "AkshanBasicAttack") || !strcmp(name, "AkshanCritAttack"))
+                {
+                    orb.add_cast(cast_start, end_cast, end_attack);
+                    orb.m_last_left_attack = gametime->get_prec_time();
+                    orb.m_double_attack = 1;
+                    return;
+                }
+                else
+                {
+                    orb.add_cast(cast_start, end_cast, myhero->get_attack_delay());
+                    orb.m_last_left_attack = -1.f;
+                    orb.m_double_attack = 0;
+                    return;
+                }
+            }
+            if (orb.m_is_sett)
             {
                 if (!strcmp(name, "SettBasicAttack") || !strcmp(name, "SettBasicAttack3"))
                 {
@@ -204,8 +221,9 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
                 else
                 {
                     orb.m_last_left_attack = -1.f;
-                    orb.m_double_attack = 2;
+                    orb.m_double_attack = 0;
                 }
+
                 orb.add_cast(cast_start, end_cast, end_cast);
                 return;
             }
@@ -299,8 +317,8 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
     settings::main_menu->add_separator("solace.orb.sep", "Message me on discord with issues");
     settings::main_menu->add_separator("solace.orb.sep2", "emily#4986");
 
-    orb.m_is_double_attack = myhero->get_champion() == champion_id::Akshan || myhero->get_champion() == champion_id::Sett;
-
+    orb.m_is_akshan = myhero->get_champion() == champion_id::Akshan;
+    orb.m_is_sett = myhero->get_champion() == champion_id::Sett;
     event_handler<events::on_env_draw>::add_callback(on_draw);
     event_handler<events::on_preupdate>::add_callback(on_preupdate, event_prority::highest);
     event_handler<events::on_update>::add_callback(on_update, event_prority::highest);

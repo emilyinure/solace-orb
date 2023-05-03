@@ -13,12 +13,13 @@ void orb_walker::add_cast(float cast_start, float end_cast, float end_attack)
     end_attack += cast_start - get_ping();
     m_wait_for_cast = 0;
 
-    m_finish_cast_time = end_cast;
     if (cast_start < m_finish_cast_time)
     {
         m_next_attack_time = end_attack;
+        m_finish_cast_time = end_cast;
         return;
     }
+    m_finish_cast_time = end_cast;
     if (end_attack > m_next_attack_time)
         m_next_attack_time = end_attack;
 }
@@ -335,6 +336,7 @@ bool orb_walker::reset_auto_attack_timer()
 {
     m_rand_time = 0.f;
 
+    console->print("reset");
     m_finish_cast_time = 0;
     m_next_attack_time = 0;
 

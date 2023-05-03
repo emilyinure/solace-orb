@@ -24,8 +24,9 @@ class orb_walker
 public:
     float m_last_left_attack = -1.f;
     int m_double_attack;
-
-    bool m_is_double_attack = false;
+    
+    bool m_is_sett = false;
+    bool m_is_akshan = false;
     std::unordered_map<int, TreeEntry*> m_blacklisted_champs;
     bool m_enabled = false;
     vector m_move_pos;
