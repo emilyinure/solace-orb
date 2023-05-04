@@ -254,7 +254,6 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
         }
         else
         {
-
             if (orb.m_is_akshan || orb.m_is_sett)
             {
                 orb.m_last_left_attack = -1.f;
@@ -263,7 +262,6 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
             if (!strcmp(name, "XayahQ"))
             {
                 orb.add_cast(cast_start, end_cast, end_attack * 3);
-                console->print("okay");
                 return;
             }
             if (strstr(name, "Summoner") || strstr(name, "Trinket") || strstr(name, "GravesAutoAttackRecoilCastE") || !strcmp(name, "GravesMove"))
