@@ -167,16 +167,16 @@ void on_draw()
         //draw_manager->add_filled_circle(myhero->get_position(), range, 0x50FFFFFF);
     }
     
-    for (auto& minion : entitylist->get_enemy_minions())
-    {
-        auto predicted_health_when_attack = health_prediction->get_health_prediction(
-            minion, gametime->get_prec_time() + get_ping() + myhero->get_attack_cast_delay() + orb.get_projectile_travel_time(minion));
-        draw_manager->add_text_on_screen(minion->get_hpbar_pos() - vector(0, 40, 0),
-                                         settings::drawings::color->get_color(), 15,
-                                         std::to_string(predicted_health_when_attack).c_str());
-        draw_manager->add_text_on_screen(minion->get_hpbar_pos() - vector(0, 20, 0), settings::drawings::color->get_color(), 15,
-                                         std::to_string(minion->get_health()).c_str());
-    }
+    //for (auto& minion : entitylist->get_enemy_minions())
+    //{
+    //    auto predicted_health_when_attack = health_prediction->get_health_prediction(
+    //        minion, gametime->get_prec_time() + get_ping() + myhero->get_attack_cast_delay() + orb.get_projectile_travel_time(minion));
+    //    draw_manager->add_text_on_screen(minion->get_hpbar_pos() - vector(0, 40, 0),
+    //                                     settings::drawings::color->get_color(), 15,
+    //                                     std::to_string(predicted_health_when_attack).c_str());
+    //    draw_manager->add_text_on_screen(minion->get_hpbar_pos() - vector(0, 20, 0), settings::drawings::color->get_color(), 15,
+    //                                     std::to_string(minion->get_health()).c_str());
+    //}
 }
 
 void on_preupdate()

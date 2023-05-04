@@ -586,12 +586,12 @@ bool orb_walker::lane_clear_mode()
                         continue;
 
                     pred_time += myhero->get_attack_cast_delay() + myhero->get_attack_delay();
-                    auto predicted_health_when_next_attack = health_prediction->get_health_prediction(i, pred_time);
+                    auto predicted_health_when_next_attack = health_prediction->get_lane_clear_health_prediction(i, pred_time);
                     
 
                     if (fabsf(original_health - predicted_health_when_next_attack) > 0.5f)
                     {
-                        predicted_health_when_next_attack -= damage;
+                        //predicted_health_when_next_attack -= damage;
 
                         if (predicted_health_when_next_attack < damage)
                         {
