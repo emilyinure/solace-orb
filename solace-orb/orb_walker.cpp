@@ -336,7 +336,6 @@ bool orb_walker::reset_auto_attack_timer()
 {
     m_rand_time = 0.f;
 
-    console->print("reset");
     m_finish_cast_time = 0;
     m_next_attack_time = 0;
 
@@ -475,7 +474,7 @@ bool orb_walker::last_hit_mode()
                 auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
                 float proj_travel_time = get_projectile_travel_time(i);
                 auto predicted_health_when_attack = health_prediction->get_health_prediction(
-                    i, get_ping() + myhero->get_attack_cast_delay() + proj_travel_time);
+                    i, myhero->get_attack_cast_delay() + proj_travel_time);
 
                 if (predicted_health_when_attack <= damage && predicted_health_when_attack > 0.f)
                 {
@@ -518,13 +517,13 @@ bool orb_walker::mixed_mode()
 
                     float proj_travel_time = get_projectile_travel_time(i);
                     auto predicted_health_when_attack = health_prediction->get_health_prediction(
-                        i, get_ping() + myhero->get_attack_cast_delay() + proj_travel_time);
+                        i, myhero->get_attack_cast_delay() + proj_travel_time);
                     if (predicted_health_when_attack <= damage) // can we last hit them
                     {
                         set_orbwalking_target(i);
                         found_last_hit = true;
                         auto predicted_health_when_attack = health_prediction->get_health_prediction(
-                            i, get_ping() + myhero->get_attack_delay() + myhero->get_attack_cast_delay() * 2 +
+                            i, myhero->get_attack_delay() + myhero->get_attack_cast_delay() * 2 +
                                    proj_travel_time);
                         if (predicted_health_when_attack <= 0.f) // will they be dead if we dont attack now
                             break;
@@ -564,7 +563,7 @@ bool orb_walker::lane_clear_mode()
                 auto original_health = i->get_health();
 
                 float proj_travel_time = get_projectile_travel_time(i);
-                float pred_time = get_ping() + myhero->get_attack_cast_delay() + proj_travel_time;
+                float pred_time = myhero->get_attack_cast_delay() + proj_travel_time;
                 auto predicted_health_when_attack = health_prediction->get_health_prediction(i, pred_time);
                 if (predicted_health_when_attack < damage) // can we last hit them
                 {

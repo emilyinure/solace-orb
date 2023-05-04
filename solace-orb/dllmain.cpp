@@ -75,45 +75,53 @@ float get_my_projectile_speed()
     
     return orb.get_my_projectile_speed();
 }
+
 bool can_attack()
 {
 
     return orb.can_attack();
 }
+
 bool can_move(float extra_windup)
 {
-
     return orb.can_move(extra_windup);
 }
+
 bool should_wait()
 {
-
     return orb.should_wait();
 }
+
 void move_to(vector& pos)
 {
     orb.move_to(pos);
 }
+
 void orbwalk(game_object_script target, vector& pos)
 {
     orb.orbwalk(target, pos);
 }
+
 void set_attack(bool enable)
 {
     orb.set_attack(enable);
 }
+
 void set_movement(bool enable)
 {
     orb.set_movement(enable);
 }
+
 void set_orbwalking_target(game_object_script target)
 {
     orb.set_orbwalking_target(target);
 }
+
 void set_orbwalking_point(vector const& pos)
 {
     orb.set_orbwalking_point(pos);
 }
+
 std::uint32_t get_orb_state()
 {
     return orb.get_orb_state();
@@ -137,6 +145,11 @@ void on_menu()
 {
 }
 
+float get_ping()
+{
+    return ping->get_ping() / 1000.f;
+}
+
 void on_draw()
 {
     if (orb.m_id != orbwalker->get_active_orbwalker())
@@ -152,6 +165,17 @@ void on_draw()
                                                      0.01f*settings::drawings::glow_outer_size->get_int(),
                                                      0.01f*settings::drawings::glow_outer_strength->get_int()});
         //draw_manager->add_filled_circle(myhero->get_position(), range, 0x50FFFFFF);
+    }
+    
+    for (auto& minion : entitylist->get_enemy_minions())
+    {
+        auto predicted_health_when_attack = health_prediction->get_health_prediction(
+            minion, gametime->get_prec_time() + get_ping() + myhero->get_attack_cast_delay() + orb.get_projectile_travel_time(minion));
+        draw_manager->add_text_on_screen(minion->get_hpbar_pos() - vector(0, 40, 0),
+                                         settings::drawings::color->get_color(), 15,
+                                         std::to_string(predicted_health_when_attack).c_str());
+        draw_manager->add_text_on_screen(minion->get_hpbar_pos() - vector(0, 20, 0), settings::drawings::color->get_color(), 15,
+                                         std::to_string(minion->get_health()).c_str());
     }
 }
 
@@ -189,11 +213,11 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
         float end_attack;
         
         auto name = spell->get_spell_data()->get_name_cstr();
+        end_cast = spell->get_attack_cast_delay();
+        end_attack = spell->get_attack_delay();
         if (spell->is_auto_attack())
         {
             last_cast = cast_start;
-            end_attack = spell->get_attack_delay();
-            end_cast = spell->get_attack_cast_delay();
             if (orb.m_is_akshan)
             {
                 if (!strcmp(name, "AkshanBasicAttack") || !strcmp(name, "AkshanCritAttack"))
@@ -230,22 +254,29 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
         }
         else
         {
+
             if (orb.m_is_akshan || orb.m_is_sett)
             {
                 orb.m_last_left_attack = -1.f;
                 orb.m_double_attack = 0;
             }
-            if (strstr(name, "Summoner") || strstr(name, "Trinket"))
+            if (!strcmp(name, "XayahQ"))
             {
+                orb.add_cast(cast_start, end_cast, end_attack * 3);
+                console->print("okay");
                 return;
             }
-
-            end_cast = spell->get_attack_cast_delay();
-            end_attack = spell->get_attack_cast_delay();
+            if (strstr(name, "Summoner") || strstr(name, "Trinket") || strstr(name, "GravesAutoAttackRecoilCastE") || !strcmp(name, "GravesMove"))
+            {
+                orb.reset_auto_attack_timer();
+                return;
+            }
             if (!strcmp(name, "KaisaE"))
             {
                 orb.set_can_move_until(end_cast + cast_start);
             }
+            orb.add_cast(cast_start, end_cast, end_cast);
+            return;
         }
         orb.add_cast(cast_start, end_cast, end_attack);
     }
