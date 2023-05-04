@@ -230,6 +230,11 @@ void on_process_spellcast(game_object_script sender, spell_instance_script spell
         }
         else
         {
+            if (orb.m_is_akshan || orb.m_is_sett)
+            {
+                orb.m_last_left_attack = -1.f;
+                orb.m_double_attack = 0;
+            }
             if (strstr(name, "Summoner") || strstr(name, "Trinket"))
             {
                 return;
