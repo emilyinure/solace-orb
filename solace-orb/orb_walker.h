@@ -2,7 +2,18 @@
 #include "../plugin_sdk/plugin_sdk.hpp"
 constexpr float SERVER_TICKRATE = 1000.f / 30.f;
 constexpr float SERVER_TICK_INTERVAL = 1.f / (1000.f / 30.f);
-
+struct spell_time_info
+{
+    spell_time_info()
+    {
+    }
+    spell_time_info(float cast_end, float attack_end)
+        : cast_end(cast_end), attack_end(attack_end)
+    {
+    }
+    float cast_end = 0.f;
+    float attack_end = 0.f;
+};
 class orb_walker
 {
     bool m_has_moved_since_last = true;
@@ -15,11 +26,11 @@ class orb_walker
     game_object_script m_last_target = {};
     game_object_script m_target = {};
     float m_last_attack_time = 0.f;
-
-    float m_next_attack_time = 0.f;
-    float m_finish_cast_time = 0.f;
+    float get_next_attack_time();
+    float get_finish_cast_time();
     float m_can_move_until = 0.f;
     float m_wait_for_cast = 0.f;
+    std::vector<spell_time_info> spell_info = {};
 
 public:
     float m_last_left_attack = -1.f;
@@ -37,12 +48,15 @@ public:
         m_can_move_until = time - get_ping();
     }
 
+    void on_issue_order(game_object_script& target, vector& pos, _issue_order_type& _type, bool* process);
+
     float get_auto_attack_range(game_object* from, game_object* to = nullptr);
     bool is_in_auto_attack_range(game_object* from, game_object* to, float additional, bool spacing);
 
     
     bool last_hit_mode();
     bool mixed_mode();
+    bool lane_clear_mode2();
     bool lane_clear_mode();
     bool find_jungle_target();
     bool find_turret_target();
@@ -53,8 +67,12 @@ public:
     bool find_other_targets();
     bool space_enemy_champs();
     bool find_champ_target_special();
+    bool is_reset(spell_data_script spell);
+    bool ignore_spell(spell_data_script spell);
+    bool special_spell_conditions(spell_instance_script spell);
     float get_ping();
     void add_cast(float cast_start, float end_cast, float end_attack);
+    void on_spell_cast(spell_instance_script& spell);
     bool combo_mode();
     bool flee_mode();
     bool none_mode();
@@ -66,7 +84,7 @@ public:
     float get_last_aa_time();
     float get_last_move_time();
     float get_my_projectile_speed();
-    float get_projectile_travel_time(const game_object_script& to);
+    float get_projectile_travel_time(const game_object_script& to, game_object_script from = nullptr);
     bool can_attack();
     bool can_move(float extra_windup);
     bool should_wait();

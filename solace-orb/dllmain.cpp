@@ -17,8 +17,7 @@ bool mixed_mode()
 }
 bool lane_clear_mode()
 {
-
-    return orb.lane_clear_mode();
+    return orb.lane_clear_mode2();
 }
 bool combo_mode()
 {
@@ -42,7 +41,7 @@ bool harass()
 }
 bool reset_auto_attack_timer()
 {
-    
+
     return orb.reset_auto_attack_timer();
 }
 game_object_script get_target()
@@ -70,9 +69,8 @@ float get_my_projectile_speed()
     {
         // ApheliosCalibrumManager
         // ApheliosGravitumManager
-
     }
-    
+
     return orb.get_my_projectile_speed();
 }
 
@@ -160,23 +158,25 @@ void on_draw()
     {
         float range = orb.get_auto_attack_range(myhero.get());
         draw_manager->add_circle_with_glow(myhero->get_position(), settings::drawings::color->get_color(), range, 3.f,
-                                           glow_data{0.01f*settings::drawings::glow_inner_size->get_int(),
-                                                     0.01f*settings::drawings::glow_inner_strength->get_int(),
-                                                     0.01f*settings::drawings::glow_outer_size->get_int(),
-                                                     0.01f*settings::drawings::glow_outer_strength->get_int()});
-        //draw_manager->add_filled_circle(myhero->get_position(), range, 0x50FFFFFF);
+                                           glow_data{0.01f * settings::drawings::glow_inner_size->get_int(),
+                                                     0.01f * settings::drawings::glow_inner_strength->get_int(),
+                                                     0.01f * settings::drawings::glow_outer_size->get_int(),
+                                                     0.01f * settings::drawings::glow_outer_strength->get_int()});
+        // draw_manager->add_filled_circle(myhero->get_position(), range, 0x50FFFFFF);
     }
-    
-    //for (auto& minion : entitylist->get_enemy_minions())
+
+    // for (auto& minion : entitylist->get_enemy_minions())
     //{
-    //    auto predicted_health_when_attack = health_prediction->get_health_prediction(
-    //        minion, gametime->get_prec_time() + get_ping() + myhero->get_attack_cast_delay() + orb.get_projectile_travel_time(minion));
-    //    draw_manager->add_text_on_screen(minion->get_hpbar_pos() - vector(0, 40, 0),
-    //                                     settings::drawings::color->get_color(), 15,
-    //                                     std::to_string(predicted_health_when_attack).c_str());
-    //    draw_manager->add_text_on_screen(minion->get_hpbar_pos() - vector(0, 20, 0), settings::drawings::color->get_color(), 15,
-    //                                     std::to_string(minion->get_health()).c_str());
-    //}
+    //     auto predicted_health_when_attack = health_prediction->get_health_prediction(
+    //         minion, gametime->get_prec_time() + get_ping() + myhero->get_attack_cast_delay() +
+    //         orb.get_projectile_travel_time(minion));
+    //     draw_manager->add_text_on_screen(minion->get_hpbar_pos() - vector(0, 40, 0),
+    //                                      settings::drawings::color->get_color(), 15,
+    //                                      std::to_string(predicted_health_when_attack).c_str());
+    //     draw_manager->add_text_on_screen(minion->get_hpbar_pos() - vector(0, 20, 0),
+    //     settings::drawings::color->get_color(), 15,
+    //                                      std::to_string(minion->get_health()).c_str());
+    // }
 }
 
 void on_preupdate()
@@ -197,86 +197,20 @@ void on_update()
     //{
     orb.combo_mode();
     orb.last_hit_mode();
-    orb.lane_clear_mode();
+    orb.lane_clear_mode2();
     orb.mixed_mode();
     //}
     orb.orbwalk(orb.get_target(), orb.m_move_pos);
 }
+void on_issue_order(game_object_script& target, vector& pos, _issue_order_type& _type, bool* process)
+{
+}
 float last_cast = 0.f;
 void on_process_spellcast(game_object_script sender, spell_instance_script spell)
 {
-    if (sender && spell && sender->get_id() == myhero->get_id()) 
+    if (sender && spell && sender->get_id() == myhero->get_id())
     {
-        float cast_start = gametime->get_prec_time();
-
-        float end_cast;
-        float end_attack;
-        
-        auto name = spell->get_spell_data()->get_name_cstr();
-        end_cast = spell->get_attack_cast_delay();
-        end_attack = spell->get_attack_delay();
-        if (spell->is_auto_attack())
-        {
-            last_cast = cast_start;
-            if (orb.m_is_akshan)
-            {
-                if (!strcmp(name, "AkshanBasicAttack") || !strcmp(name, "AkshanCritAttack"))
-                {
-                    orb.add_cast(cast_start, end_cast, end_attack);
-                    orb.m_last_left_attack = gametime->get_prec_time();
-                    orb.m_double_attack = 1;
-                    return;
-                }
-                else
-                {
-                    orb.add_cast(cast_start, end_cast, myhero->get_attack_delay());
-                    orb.m_last_left_attack = -1.f;
-                    orb.m_double_attack = 0;
-                    return;
-                }
-            }
-            if (orb.m_is_sett)
-            {
-                if (!strcmp(name, "SettBasicAttack") || !strcmp(name, "SettBasicAttack3"))
-                {
-                    orb.m_last_left_attack = gametime->get_prec_time();
-                    orb.m_double_attack = 1;
-                }
-                else
-                {
-                    orb.m_last_left_attack = -1.f;
-                    orb.m_double_attack = 0;
-                }
-
-                orb.add_cast(cast_start, end_cast, end_cast);
-                return;
-            }
-        }
-        else
-        {
-            if (orb.m_is_akshan || orb.m_is_sett)
-            {
-                orb.m_last_left_attack = -1.f;
-                orb.m_double_attack = 0;
-            }
-            if (!strcmp(name, "XayahQ"))
-            {
-                orb.add_cast(cast_start, end_cast, end_attack * 3);
-                return;
-            }
-            if (strstr(name, "Summoner") || strstr(name, "Trinket") || strstr(name, "GravesAutoAttackRecoilCastE") || !strcmp(name, "GravesMove"))
-            {
-                orb.reset_auto_attack_timer();
-                return;
-            }
-            if (!strcmp(name, "KaisaE"))
-            {
-                orb.set_can_move_until(end_cast + cast_start);
-            }
-            orb.add_cast(cast_start, end_cast, end_cast);
-            return;
-        }
-        orb.add_cast(cast_start, end_cast, end_attack);
+        orb.on_spell_cast(spell);
     }
 }
 
@@ -286,7 +220,6 @@ void min_move_delay_changed(TreeEntry* tree)
     if (settings::humanizer::max_move_delay->get_int() < val)
         settings::humanizer::max_move_delay->set_int(val);
 }
-
 
 void max_move_delay_changed(TreeEntry* tree)
 {
@@ -300,7 +233,7 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
     DECLARE_GLOBALS(plugin_sdk_good);
 
     settings::main_menu = menu->create_tab("solace.orb", "solace-orb beta");
-    
+
     const auto drawings_tab = settings::main_menu->add_tab("solace.orb.drawings", "Drawings");
     {
         settings::drawings::enable = drawings_tab->add_checkbox("solace.orb.drawings.enable", "Enable", true);
@@ -316,16 +249,26 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
             drawings_tab->add_slider("solace.orb.humanizer.glowouterstrength", "Glow Outer Strength", 0, 0, 100);
     }
 
-    
     const auto bindings_tab = settings::main_menu->add_tab("solace.orb.bindings", "Bindings");
-    settings::bindings::last_hit =
-        bindings_tab->add_hotkey("solace.orb.bindings.last_hit", "Last Hit", TreeHotkeyMode::Hold, 88, false);
-    settings::bindings::lane_clear =
-        bindings_tab->add_hotkey("solace.orb.bindings.laneclear", "Lane Clear", TreeHotkeyMode::Hold, 86, false);
-    settings::bindings::combo = bindings_tab->add_hotkey("solace.orb.bindings.combo", "Combo", TreeHotkeyMode::Hold, 32, false);
-    settings::bindings::mixed = bindings_tab->add_hotkey("solace.orb.bindings.mixed", "Mixed", TreeHotkeyMode::Hold, 160, false);
-    settings::bindings::auto_space =
-        bindings_tab->add_hotkey("solace.orb.bindings.autospace", "Auto Space", TreeHotkeyMode::Hold, 5, false);
+    {
+        settings::bindings::last_hit =
+            bindings_tab->add_hotkey("solace.orb.bindings.last_hit", "Last Hit", TreeHotkeyMode::Hold, 88, false);
+        settings::bindings::lane_clear =
+            bindings_tab->add_hotkey("solace.orb.bindings.laneclear", "Lane Clear", TreeHotkeyMode::Hold, 86, false);
+        settings::bindings::combo =
+            bindings_tab->add_hotkey("solace.orb.bindings.combo", "Combo", TreeHotkeyMode::Hold, 32, false);
+        settings::bindings::mixed =
+            bindings_tab->add_hotkey("solace.orb.bindings.mixed", "Mixed", TreeHotkeyMode::Hold, 160, false);
+        settings::bindings::auto_space =
+            bindings_tab->add_hotkey("solace.orb.bindings.autospace", "Auto Space", TreeHotkeyMode::Hold, 5, false);
+    }
+
+    
+    const auto champ_tab = settings::main_menu->add_tab("solace.orb.champ", "Champ");
+    {
+        settings::champ::akshan_aa =
+            champ_tab->add_hotkey("solace.orb.champ.akshanaa", "Akshan Double AA", TreeHotkeyMode::Toggle, 0x0, false);
+    }
 
     const auto spacing_tab = settings::main_menu->add_tab("solace.orb.spacing", "Spacing");
     {
@@ -336,20 +279,21 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
         for (auto& i : entitylist->get_enemy_heroes())
         {
             orb.m_blacklisted_champs[i->get_network_id()] = blacklist_tab->add_checkbox(
-                (temp + i->get_base_skin_name()).c_str(), i->get_base_skin_name(), false, false);
+                (temp + i->get_base_skin_name()).c_str(), i->get_base_skin_name(), false);
         }
     }
-    
 
     const auto humanizer_tab = settings::main_menu->add_tab("solace.orb.humanizer", "Humanizer");
-    settings::humanizer::min_move_delay =
-        humanizer_tab->add_slider("solace.orb.humanizer.minmovedelay", "Minimum Move Delay", 50, 40, 1000);
-    settings::humanizer::min_move_delay->add_property_change_callback(min_move_delay_changed);
-    settings::humanizer::max_move_delay =
-        humanizer_tab->add_slider("solace.orb.humanizer.maxmovedelay", "Maximum Move Delay", 80, 40, 1000);
-    settings::humanizer::max_move_delay->add_property_change_callback(max_move_delay_changed);
-    settings::main_menu->add_separator("solace.orb.sep", "Message me on discord with issues");
-    settings::main_menu->add_separator("solace.orb.sep2", "emily#4986");
+    {
+        settings::humanizer::min_move_delay =
+            humanizer_tab->add_slider("solace.orb.humanizer.minmovedelay", "Minimum Move Delay", 50, 40, 1000);
+        settings::humanizer::min_move_delay->add_property_change_callback(min_move_delay_changed);
+        settings::humanizer::max_move_delay =
+            humanizer_tab->add_slider("solace.orb.humanizer.maxmovedelay", "Maximum Move Delay", 80, 40, 1000);
+        settings::humanizer::max_move_delay->add_property_change_callback(max_move_delay_changed);
+        settings::main_menu->add_separator("solace.orb.sep", "Message me on discord with issues");
+        settings::main_menu->add_separator("solace.orb.sep2", "emily#4986");
+    }
 
     orb.m_is_akshan = myhero->get_champion() == champion_id::Akshan;
     orb.m_is_sett = myhero->get_champion() == champion_id::Sett;
@@ -357,6 +301,7 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
     event_handler<events::on_preupdate>::add_callback(on_preupdate, event_prority::highest);
     event_handler<events::on_update>::add_callback(on_update, event_prority::highest);
     event_handler<events::on_process_spell_cast>::add_callback(on_process_spellcast, event_prority::highest);
+    event_handler<events::on_issue_order>::add_callback(on_issue_order, event_prority::highest);
     orb.m_id = orbwalker->add_orbwalker_callback(
         "solace-orb beta", last_hit_mode, mixed_mode, lane_clear_mode, combo_mode, flee_mode, none_mode, harass,
         reset_auto_attack_timer, get_target, get_last_target, get_last_aa_time, get_last_move_time,
@@ -368,6 +313,11 @@ PLUGIN_API bool on_sdk_load(plugin_sdk_core* plugin_sdk_good)
 
 PLUGIN_API void on_sdk_unload()
 {
+
     event_handler<events::on_env_draw>::remove_handler(on_draw);
+    event_handler<events::on_preupdate>::remove_handler(on_preupdate);
+    event_handler<events::on_update>::remove_handler(on_update);
+    event_handler<events::on_process_spell_cast>::remove_handler(on_process_spellcast);
+    event_handler<events::on_issue_order>::remove_handler(on_issue_order);
     orbwalker->remove_orbwalker_callback(orb.m_id);
 }

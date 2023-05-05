@@ -27,6 +27,11 @@ namespace settings
         inline TreeEntry* auto_space;
     } // namespace bindings
 
+    namespace champ
+    {
+        inline TreeEntry* akshan_aa;
+    } // namespace bindings
+
     namespace humanizer
     {
         inline TreeEntry* min_move_delay;
