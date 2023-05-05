@@ -266,7 +266,7 @@ bool orb_walker::is_in_auto_attack_range(game_object* from, game_object* to, flo
             attack_range -= 100.f;
         attack_range = fmaxf(attack_range, get_auto_attack_range(to, from) - 5.f);
     }
-
+    attack_range += additional;
     return from_position.distance_squared(to_position) < attack_range * attack_range; 
 }
 
@@ -299,10 +299,14 @@ bool orb_walker::space_enemy_champs()
         float time = gametime->get_prec_time() + get_ping();
         float attack_time = get_next_attack_time();
         float move_time = get_finish_cast_time();
-        if (move_time <= time && attack_time > time)
+        if (attack_time > time)
         {
-            float new_time = (attack_time - move_time) / 2.f;
-            space += fabsf(new_time) * myhero->get_move_speed();
+            float new_time = ((attack_time - move_time)) / 2.f;
+            if (new_time + move_time > time)
+            {
+                console->print(std::to_string(myhero->get_move_speed()).c_str());
+                space += fabsf(new_time) * myhero->get_move_speed();
+            }
         }
         // if (attack_time > time && time > move_time)
         //{
@@ -747,7 +751,7 @@ bool orb_walker::lane_clear_mode2()
         }
 
         //console->print("wtf agro");
-        if (!forced_to_last_hit && minion_with_turret_agro)
+        if ( minion_with_turret_agro)
         {
             if (!target_filter(minion_with_turret_agro.get()) &&
                 is_in_auto_attack_range(myhero.get(), minion_with_turret_agro.get()))
@@ -764,7 +768,7 @@ bool orb_walker::lane_clear_mode2()
                     found_to_last_hit = true;
                     set_orbwalking_target(minion_with_turret_agro);
                 }
-                else
+                else if (!forced_to_last_hit)
                 {
                     auto turret = health_prediction->get_aggro_turret(minion_with_turret_agro);
                     float agro_start = health_prediction->turret_aggro_start_time(minion_with_turret_agro);
