@@ -1,6 +1,6 @@
 # solace-orb
 Incomplete orbwalker for BGX
-##Features
+## Features
 * Autospacing
 * Incomplete/Broken health prediction
 * Akshan and Sett double attack
