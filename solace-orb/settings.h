@@ -25,6 +25,7 @@ namespace settings
         inline TreeEntry* combo;
         inline TreeEntry* mixed;
         inline TreeEntry* auto_space;
+        inline TreeEntry* flee;
     } // namespace bindings
 
     namespace champ

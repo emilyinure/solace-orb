@@ -1,5 +1,6 @@
 #include "orb_walker.h"
 #include "settings.h"
+#include "health_pred.h"
 
 bool orb_walker::is_reset(spell_data_script spell)
 {
@@ -12,7 +13,7 @@ bool orb_walker::is_reset(spell_data_script spell)
 bool orb_walker::ignore_spell(spell_data_script spell)
 {
     auto name = spell->get_name_cstr();
-    return strstr(name, "Summoner") || strstr(name, "Trinket");
+    return strstr(name, "Summoner") || strstr(name, "Trinket") || spell->get_name_hash() == spell_hash("TwitchR");
 }
 
 bool orb_walker::special_spell_conditions(spell_instance_script spell)
@@ -23,14 +24,18 @@ bool orb_walker::special_spell_conditions(spell_instance_script spell)
         m_double_attack = 0;
     }
 
-    float cast_start = gametime->get_prec_time();
+    float cast_start = gametime->get_time() - ping->get_ping() / 2000.f + (1.f / 30.f);
     float end_cast = spell->get_attack_cast_delay();
     float end_attack = spell->get_attack_delay();
+    console->print(spell->get_spell_data()->get_name_cstr());
     switch (spell->get_spell_data()->get_name_hash())
     {
+        case spell_hash("KalistaBasicAttack"):
+            add_cast(cast_start, 0.f, end_attack / 2.f, spell->get_spell_data()->get_name_hash());
+            return true;
         case spell_hash("AkshanBasicAttack"):
         case spell_hash("AkshanCritAttack"):
-            add_cast(cast_start, end_cast, end_attack);
+            add_cast(cast_start, end_cast, end_attack, spell->get_spell_data()->get_name_hash());
             m_last_left_attack = gametime->get_prec_time();
             if (settings::champ::akshan_aa->get_bool())
                 m_double_attack = 1;
@@ -39,10 +44,10 @@ bool orb_walker::special_spell_conditions(spell_instance_script spell)
         case spell_hash("SettBasicAttack3"):
             m_last_left_attack = cast_start;
             m_double_attack = 1;
-            add_cast(cast_start, end_cast, end_cast);
+            add_cast(cast_start, end_cast, end_cast, spell->get_spell_data()->get_name_hash());
             return true;
         case spell_hash("XayahQ"):
-            add_cast(cast_start, end_cast, end_attack * 3);
+            add_cast(cast_start, end_cast, end_attack * 3, spell->get_spell_data()->get_name_hash());
             return true;
         case spell_hash("KaisaE"):
             set_can_move_until(end_cast + cast_start);
@@ -54,11 +59,12 @@ bool orb_walker::special_spell_conditions(spell_instance_script spell)
                 {
                     m_last_left_attack = -1.f;
                     m_double_attack = 0;
-                    add_cast(cast_start, end_cast, end_cast);
+                    add_cast(cast_start, end_cast, end_cast, spell->get_spell_data()->get_name_hash());
                 }
                 if (m_is_akshan)
                 {
-                    add_cast(cast_start, end_cast, myhero->get_attack_delay());
+                    add_cast(cast_start, end_cast, myhero->get_attack_delay(),
+                             spell->get_spell_data()->get_name_hash());
                     m_last_left_attack = -1.f;
                     m_double_attack = 0;
                     return true;
@@ -71,10 +77,10 @@ bool orb_walker::special_spell_conditions(spell_instance_script spell)
 
 float orb_walker::get_ping()
 {
-    return ping->get_ping() / 1000.f;
+    return (ping->get_ping() / 2000.f);
 };
 
-void orb_walker::add_cast(float cast_start, float end_cast, float end_attack)
+void orb_walker::add_cast(float cast_start, float end_cast, float end_attack, uint32_t hash)
 {
     // console->print(std::to_string(end_cast).c_str());
     end_cast += cast_start - get_ping();
@@ -90,12 +96,12 @@ void orb_walker::add_cast(float cast_start, float end_cast, float end_attack)
             i--;
         }
     }
-    spell_info.push_back(spell_time_info{end_cast, end_attack});
+    spell_info.push_back(spell_time_info{end_cast, end_attack, hash});
 }
 
 void orb_walker::on_spell_cast(spell_instance_script& spell)
 {
-    float cast_start = gametime->get_prec_time();
+    float cast_start = gametime->get_time() - (ping->get_ping() / 2000.f) + (1.f / 30.f); // startTime
     float end_cast = spell->get_attack_cast_delay();
     float end_attack = spell->get_attack_delay();
 
@@ -113,17 +119,30 @@ void orb_walker::on_spell_cast(spell_instance_script& spell)
             reset_auto_attack_timer();
             return;
         }
-        add_cast(cast_start, end_cast, end_cast);
+        add_cast(cast_start, end_cast, end_cast, spell->get_spell_data()->get_name_hash());
         return;
     }
 
-    add_cast(cast_start, end_cast, end_attack);
+    add_cast(cast_start, end_cast, end_attack, spell->get_spell_data()->get_name_hash());
+}
+
+void orb_walker::on_stop_cast(spell_instance_script& spell)
+{
+    for (auto i = 0; i < spell_info.size(); i++)
+    {
+        auto& info = spell_info[i];
+        if (info.name_hash == spell->get_spell_data()->get_name_hash())
+        {
+            spell_info.erase(spell_info.begin() + i);
+            i--;
+        }
+    }
 }
 
 float orb_walker::get_next_attack_time()
 {
     float attack_time = 0;
-    for (auto &i : spell_info)
+    for (auto& i : spell_info)
         attack_time = fmaxf(attack_time, i.attack_end);
     return attack_time;
 }
@@ -138,7 +157,6 @@ float orb_walker::get_finish_cast_time()
 
 void orb_walker::on_issue_order(game_object_script& target, vector& pos, _issue_order_type& _type, bool* process)
 {
-
 }
 
 float orb_walker::get_auto_attack_range(game_object* from, game_object* to)
@@ -242,7 +260,7 @@ bool orb_walker::is_in_auto_attack_range(game_object* from, game_object* to, flo
     {
         if (to->get_path_controller()->is_moving())
         {
-            to_position = to_position + to->get_pathing_direction() * get_ping() * (1.f + SERVER_TICK_INTERVAL);
+            to_position = to_position + to->get_pathing_direction() * (get_ping() + SERVER_TICK_INTERVAL);
         }
     }
 
@@ -250,7 +268,7 @@ bool orb_walker::is_in_auto_attack_range(game_object* from, game_object* to, flo
     {
         if (from->get_path_controller()->is_moving())
         {
-            from_position = from_position + from->get_pathing_direction() * get_ping() * (1.f + SERVER_TICK_INTERVAL);
+            from_position = from_position + from->get_pathing_direction() * (get_ping() + SERVER_TICK_INTERVAL);
         }
     }
 
@@ -267,7 +285,7 @@ bool orb_walker::is_in_auto_attack_range(game_object* from, game_object* to, flo
         attack_range = fmaxf(attack_range, get_auto_attack_range(to, from) - 5.f);
     }
     attack_range += additional;
-    return from_position.distance_squared(to_position) < attack_range * attack_range; 
+    return from_position.distance_squared(to_position) < attack_range * attack_range;
 }
 
 bool orb_walker::space_enemy_champs()
@@ -278,7 +296,7 @@ bool orb_walker::space_enemy_champs()
     {
         if (target_filter(i.get()))
             continue;
-        
+
         auto id = i->get_network_id();
         auto num = m_blacklisted_champs.count(id);
         if (num && m_blacklisted_champs.at(id)->get_bool())
@@ -304,7 +322,7 @@ bool orb_walker::space_enemy_champs()
             float new_time = ((attack_time - move_time)) / 2.f;
             if (new_time + move_time > time)
             {
-                console->print(std::to_string(myhero->get_move_speed()).c_str());
+                // console->print(std::to_string(myhero->get_move_speed()).c_str());
                 space += fabsf(new_time) * myhero->get_move_speed();
             }
         }
@@ -357,6 +375,9 @@ bool orb_walker::find_champ_target_special()
 
 bool orb_walker::can_attack()
 {
+    auto active_spell = myhero->get_active_spell();
+    if (active_spell && active_spell->is_channeling())
+        return false;
     if (myhero->is_winding_up())
         return false;
     float game_time = gametime->get_prec_time() + get_ping();
@@ -418,7 +439,8 @@ float orb_walker::get_my_projectile_speed()
     return myhero->get_auto_attack()->MissileSpeed();
 }
 
-float orb_walker::get_projectile_travel_time(const game_object_script& to, game_object_script from)
+float orb_walker::get_projectile_travel_time(const game_object_script& to, game_object_script from,
+                                             spell_data_script spell)
 {
     if (from == nullptr)
         from = myhero;
@@ -431,7 +453,10 @@ float orb_walker::get_projectile_travel_time(const game_object_script& to, game_
     if (from->is_ai_hero())
         from_position = from->get_path_controller()->get_position_on_path();
 
-    return (to_position - from_position).length() / from->get_auto_attack()->MissileSpeed();
+    if (spell == nullptr)
+        spell = from->get_auto_attack();
+
+    return ((to_position - from_position).length() - to->get_bounding_radius()) / spell->MissileSpeed();
 }
 
 void orb_walker::set_attack(bool enable)
@@ -593,18 +618,20 @@ bool orb_walker::last_hit_mode()
 
             if (is_in_auto_attack_range(myhero.get(), i.get()))
             {
-                auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
+                auto damage = myhero->get_auto_attack_damage(i, true);
+                float death_time = -1.f;
+                auto death_health = healthpred.get_last_health_before_death(i, death_time);
+
                 float proj_travel_time = get_projectile_travel_time(i);
-                auto predicted_health_when_attack = health_prediction->get_health_prediction(
-                    i, myhero->get_attack_cast_delay() + proj_travel_time);
+                auto predicted_health_when_attack = healthpred.get_health_prediction(
+                    i, gametime->get_prec_time() + myhero->get_attack_cast_delay() + proj_travel_time + get_ping());
 
                 if (predicted_health_when_attack <= damage && predicted_health_when_attack > 0.f)
                 {
                     set_orbwalking_target(i);
-                    auto predicted_health_after_attack = health_prediction->get_health_prediction(
-                        i, get_ping() + myhero->get_attack_delay() + myhero->get_attack_cast_delay() * 2 +
-                               proj_travel_time);
-                    if (predicted_health_after_attack <= 0.f)
+                    float next_hit_time = gametime->get_prec_time() + myhero->get_attack_delay() +
+                                          myhero->get_attack_cast_delay() + proj_travel_time + get_ping();
+                    if (death_time > 0.f && next_hit_time > death_time) // will they be dead if we dont attack now
                         break;
                 }
             }
@@ -635,19 +662,20 @@ bool orb_walker::mixed_mode()
 
                 if (is_in_auto_attack_range(myhero.get(), i.get()))
                 {
-                    auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
+                    auto damage = myhero->get_auto_attack_damage(i, true);
+                    float death_time = -1.f;
+                    auto death_health = healthpred.get_last_health_before_death(i, death_time);
 
                     float proj_travel_time = get_projectile_travel_time(i);
-                    auto predicted_health_when_attack = health_prediction->get_health_prediction(
-                        i, myhero->get_attack_cast_delay() + proj_travel_time);
+                    auto predicted_health_when_attack = healthpred.get_health_prediction(
+                        i, myhero->get_attack_cast_delay() + proj_travel_time + get_ping());
                     if (predicted_health_when_attack <= damage) // can we last hit them
                     {
                         set_orbwalking_target(i);
                         found_last_hit = true;
-                        auto predicted_health_when_attack = health_prediction->get_health_prediction(
-                            i, myhero->get_attack_delay() + myhero->get_attack_cast_delay() * 2 +
-                                   proj_travel_time);
-                        if (predicted_health_when_attack <= 0.f) // will they be dead if we dont attack now
+                        float next_hit_time = gametime->get_prec_time() + myhero->get_attack_delay() +
+                                              myhero->get_attack_cast_delay() + proj_travel_time + get_ping();
+                        if (death_time > 0.f && next_hit_time > death_time) // will they be dead if we dont attack now
                             break;
                     }
                 }
@@ -661,6 +689,12 @@ bool orb_walker::mixed_mode()
     return false;
 }
 
+enum minion_type
+{
+    melee = 4,
+    caster,
+    cannon
+};
 
 bool orb_walker::lane_clear_mode2()
 {
@@ -675,6 +709,7 @@ bool orb_walker::lane_clear_mode2()
         m_enabled = true;
 
         game_object_script minion_with_turret_agro = {};
+        std::vector<game_object_script> minions_under_tower = {};
         std::vector<game_object_script> minions_with_agro = {};
         std::vector<game_object_script> minions_no_agro = {};
 
@@ -691,6 +726,12 @@ bool orb_walker::lane_clear_mode2()
                 continue;
             }
 
+            if (i->is_under_enemy_turret())
+            {
+                minions_under_tower.push_back(i);
+                continue;
+            }
+
             if (health_prediction->has_minion_aggro(i))
                 minions_with_agro.push_back(i);
             else
@@ -702,15 +743,15 @@ bool orb_walker::lane_clear_mode2()
         bool found_to_wait = false;
         bool forced_health_adjust = false;
 
+        auto my_damage = damagelib->get_auto_attack_damage(myhero, minion_with_turret_agro, true);
         for (auto& i : minions_with_agro)
         {
-            auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
             auto original_health = i->get_health();
 
             float proj_travel_time = get_projectile_travel_time(i);
             float pred_time = myhero->get_attack_cast_delay() + proj_travel_time;
             auto predicted_health_when_attack = health_prediction->get_health_prediction(i, pred_time);
-            if (predicted_health_when_attack < damage) // can we last hit them
+            if (predicted_health_when_attack < my_damage) // can we last hit them
             {
                 pred_time += myhero->get_attack_cast_delay() + myhero->get_attack_delay();
                 auto predicted_health_when_attack = health_prediction->get_health_prediction(i, pred_time);
@@ -750,73 +791,147 @@ bool orb_walker::lane_clear_mode2()
             set_orbwalking_target(i);
         }
 
-        //console->print("wtf agro");
-        if ( minion_with_turret_agro)
+        bool forced_to_wait = false;
+        if (minion_with_turret_agro)
         {
-            if (!target_filter(minion_with_turret_agro.get()) &&
-                is_in_auto_attack_range(myhero.get(), minion_with_turret_agro.get()))
+            auto turret = health_prediction->get_aggro_turret(minion_with_turret_agro);
+            auto turret_damage = damagelib->get_auto_attack_damage(turret, minion_with_turret_agro, true);
+            auto next_turret_hit_time = turret->get_attack_cast_delay() +
+                                        health_prediction->turret_aggro_start_time(minion_with_turret_agro) +
+                                        get_projectile_travel_time(minion_with_turret_agro, turret);
+
+            float proj_travel_time = get_projectile_travel_time(minion_with_turret_agro);
+            float pred_time = myhero->get_attack_cast_delay() + proj_travel_time;
+            auto predicted_health_when_attack =
+                health_prediction->get_health_prediction(minion_with_turret_agro, pred_time);
+            if (predicted_health_when_attack < my_damage) // can we last hit them
             {
-                console->print("found agro");
-                auto my_damage = damagelib->get_auto_attack_damage(myhero, minion_with_turret_agro, true);
+                found_to_last_hit = true;
+                set_orbwalking_target(minion_with_turret_agro);
+            }
+            else
+            {
 
-                float proj_travel_time = get_projectile_travel_time(minion_with_turret_agro);
-                float pred_time = myhero->get_attack_cast_delay() + proj_travel_time;
-                auto predicted_health_when_attack =
-                    health_prediction->get_health_prediction(minion_with_turret_agro, pred_time);
-                if (predicted_health_when_attack < my_damage) // can we last hit them
+                if (minion_with_turret_agro->get_real_health() < turret_damage)
                 {
-                    found_to_last_hit = true;
-                    set_orbwalking_target(minion_with_turret_agro);
-                }
-                else if (!forced_to_last_hit)
-                {
-                    auto turret = health_prediction->get_aggro_turret(minion_with_turret_agro);
-                    float agro_start = health_prediction->turret_aggro_start_time(minion_with_turret_agro);
-                    float next_cast_time = agro_start;
-                    float game_time = gametime->get_prec_time();
-                    while (next_cast_time < game_time)
-                        next_cast_time += turret->get_attack_delay();
-                    next_cast_time -= turret->get_attack_delay() - turret->get_attack_cast_delay();
-
-                    float turret_next_hit_time = get_projectile_travel_time(minion_with_turret_agro, turret) + next_cast_time;
-                    float my_next_hit_time = game_time + myhero->get_attack_cast_delay() + get_projectile_travel_time(minion_with_turret_agro);
-
-                    auto current_health = minion_with_turret_agro->get_real_health();
-                    auto turret_damage = damagelib->get_auto_attack_damage(turret, minion_with_turret_agro, true);
-
-                    if (my_next_hit_time > turret_next_hit_time)
-                        current_health -= turret_damage;
-
-                    int iter = 0;
-                    bool found = false;
-                    while (current_health > 0)
+                    float next_hit_time = gametime->get_prec_time() + myhero->get_attack_cast_delay() +
+                                          get_projectile_travel_time(minion_with_turret_agro);
+                    float new_health = minion_with_turret_agro->get_real_health();
+                    for (; next_hit_time < next_turret_hit_time; next_hit_time += myhero->get_attack_delay())
                     {
-                        current_health -= turret_damage;
-                        iter++;
-                        if (current_health > 0 && current_health <= my_damage)
+                        new_health -= my_damage;
+                        if (new_health < 0)
                         {
-                            found = true;
-                            break;
+                            found_to_last_hit = true;
+                            set_orbwalking_target(minion_with_turret_agro);
                         }
                     }
-                    if (!found && iter > 1)
+                }
+                else if (health_prediction->get_health_prediction(minion_with_turret_agro,
+                                                                  pred_time + myhero->get_attack_delay()) < 0)
+                {
+                    forced_to_wait = true;
+                    set_orbwalking_target(nullptr);
+                }
+            }
+
+            if (!forced_to_wait && !found_to_last_hit && !minions_under_tower.empty())
+            {
+                float best = -1;
+                game_object_script turret;
+                for (auto& i : entitylist->get_ally_turrets())
+                {
+                    float dist = i->get_position().distance_squared(minions_under_tower.front()->get_position());
+                    if (best > dist || best < 0)
                     {
-                        set_orbwalking_target(minion_with_turret_agro);
-                        forced_health_adjust = iter == 2;
+                        best = dist;
+                        turret = i;
+                    }
+                }
+                struct
+                {
+                    game_object_script turret;
+                    bool operator()(game_object_script a, game_object_script b) const
+                    {
+                        if (a->get_minion_type() == cannon && b->get_minion_type() != cannon)
+                            return true;
+                        if (b->get_minion_type() == cannon && a->get_minion_type() != cannon)
+                            return false;
+                        if (a->get_minion_type() == melee && b->get_minion_type() != melee)
+                            return true;
+                        if (b->get_minion_type() == melee && a->get_minion_type() != melee)
+                            return false;
+                        return a->get_position().distance_squared(turret->get_position()) <
+                               b->get_position().distance_squared(turret->get_position());
+                    }
+                } customLess;
+                customLess.turret = turret;
+                std::sort(minions_under_tower.begin(), minions_under_tower.end(), customLess);
+
+                game_object_script furthest_caster;
+                for (auto& i : minions_under_tower)
+                {
+                    // float time = 0;
+                    // float last_health = healthpred.get_last_health_before_death(i, time);
+                    //
+                    // if (last_health > my_damage)
+                    //{
+                    //     forced_health_adjust = true;
+                    //     set_orbwalking_target(i);
+                    //     break;
+                    // }
+
+                    auto turret_damage = damagelib->get_auto_attack_damage(turret, i, true);
+                    auto turret_attack_health = i->get_real_health();
+                    while (turret_attack_health > my_damage)
+                        turret_attack_health -= turret_damage;
+
+                    if (turret_attack_health <= 0)
+                    {
+                        forced_health_adjust = true;
+                        set_orbwalking_target(i);
+                        break;
+                    }
+                }
+                if (!forced_health_adjust)
+                {
+                    if (minions_under_tower.size() > 2)
+                    {
+                        auto new_target = minions_under_tower.back();
+                        float proj_travel_time = get_projectile_travel_time(new_target);
+                        float pred_time = myhero->get_attack_cast_delay() + proj_travel_time;
+                        auto predicted_health_when_attack =
+                            health_prediction->get_health_prediction(new_target, pred_time);
+                        if (predicted_health_when_attack < my_damage) // can we last hit them
+                        {
+                            found_to_last_hit = true;
+                            set_orbwalking_target(new_target);
+                        }
+                        else if (health_prediction->get_health_prediction(new_target,
+                                                                          pred_time + myhero->get_attack_delay()) < 0)
+                        {
+                            forced_to_wait = true;
+                            set_orbwalking_target(nullptr);
+                        }
+                        else
+                        {
+                            set_orbwalking_target(new_target);
+                        }
                     }
                 }
             }
         }
 
-        if (!forced_health_adjust && !found_to_last_hit)
+        if (!forced_health_adjust && !found_to_last_hit && !forced_to_last_hit && !forced_to_wait)
         {
             find_turret_target() || find_inhibitor_target() || find_nexus_target();
         }
-        if (!get_target() && !found_to_wait)
+        if (!get_target() && !found_to_wait && !forced_to_wait)
         {
             if (!minions_no_agro.empty())
                 set_orbwalking_target(minions_no_agro.front());
-            else find_other_targets();
+            else
+                find_other_targets();
         }
         return true;
     }
@@ -825,6 +940,9 @@ bool orb_walker::lane_clear_mode2()
 
 bool orb_walker::lane_clear_mode()
 {
+    m_last_hit = nullptr;
+    m_wait = nullptr;
+    m_adjust = nullptr;
     if (settings::bindings::lane_clear->get_bool())
     {
         bool found_to_wait = false;
@@ -843,23 +961,24 @@ bool orb_walker::lane_clear_mode()
 
             if (is_in_auto_attack_range(myhero.get(), i.get()))
             {
-                auto damage = damagelib->get_auto_attack_damage(myhero, i, true);
+                auto damage = myhero->get_auto_attack_damage(i, true);
                 auto original_health = i->get_health();
+                float death_time = -1.f;
+                auto death_health = healthpred.get_last_health_before_death(i, death_time);
 
                 float proj_travel_time = get_projectile_travel_time(i);
-                float pred_time = myhero->get_attack_cast_delay() + proj_travel_time;
-                auto predicted_health_when_attack = health_prediction->get_health_prediction(i, pred_time);
+                auto predicted_health_when_attack = healthpred.get_health_prediction(
+                    i, gametime->get_prec_time() + myhero->get_attack_cast_delay() + proj_travel_time + get_ping());
                 if (predicted_health_when_attack < damage) // can we last hit them
                 {
+                    m_last_hit = i;
+                    // console->print("last_hit");
+                    set_orbwalking_target(i);
                     found_last_hit = true;
-
-                    pred_time += myhero->get_attack_cast_delay() + myhero->get_attack_delay();
-                    auto predicted_health_when_attack = health_prediction->get_health_prediction(i, pred_time);
-                    if (predicted_health_when_attack < 0.f) // will they be dead if we dont attack now
-                    { 
-                        set_orbwalking_target(i);
+                    float next_hit_time = gametime->get_prec_time() + myhero->get_attack_delay() +
+                                          myhero->get_attack_cast_delay() + proj_travel_time + get_ping();
+                    if (death_time > 0.f && next_hit_time > death_time) // will they be dead if we dont attack now
                         break;
-                    }
                 }
                 else
                 {
@@ -869,29 +988,39 @@ bool orb_walker::lane_clear_mode()
                                        // minions
                         continue;
 
-                    pred_time += myhero->get_attack_cast_delay() + myhero->get_attack_delay();
-                    auto predicted_health_when_next_attack = health_prediction->get_health_prediction(i, pred_time);
-                    
+                    float next_hit_time = gametime->get_prec_time() + myhero->get_attack_delay() * 2 +
+                                          myhero->get_attack_cast_delay() + proj_travel_time + get_ping();
 
-                    if (fabsf(original_health - predicted_health_when_next_attack) > 0.5f)
+                    if (death_time > 0.f)
                     {
-                        //predicted_health_when_next_attack -= damage;
-
-                        if (predicted_health_when_next_attack < 0)
+                        // predicted_health_when_next_attack -= damage;
+                        if (death_health > damage)
                         {
+                            m_adjust = i;
+                            found_to_wait = true;
+                            set_orbwalking_target(i);
+                            // console->print("adjust health");
+                        }
+                        else if (death_time < next_hit_time + 0.05)
+                        {
+                            m_wait = i;
+                            // console->print("wait");
                             found_to_wait = true; // lets wait
                             set_orbwalking_target(nullptr);
                             continue;
                         }
                     }
                 }
-                set_orbwalking_target(i);
+                if (!get_target())
+                    set_orbwalking_target(i);
             }
         }
+
         if (!found_last_hit)
         {
             find_turret_target() || find_inhibitor_target() || find_nexus_target();
         }
+
         if (!get_target() && !found_to_wait)
         {
             find_other_targets();
@@ -913,8 +1042,8 @@ bool orb_walker::combo_mode()
         auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
         set_orbwalking_point(pos);
 
-        space_enemy_champs();
-        find_champ_target_special();
+        if (!space_enemy_champs())
+            find_champ_target_special();
         return true;
     }
     return false;
@@ -922,6 +1051,16 @@ bool orb_walker::combo_mode()
 
 bool orb_walker::flee_mode()
 {
+    if (settings::bindings::flee->get_bool())
+    {
+        m_enabled = true;
+        m_orb_state = orbwalker_state_flags::flee;
+        set_orbwalking_target(nullptr);
+
+        auto pos = hud->get_hud_input_logic()->get_game_cursor_position();
+        set_orbwalking_point(pos);
+        return true;
+    }
     return false;
 }
 
@@ -961,6 +1100,11 @@ void orb_walker::orbwalk(game_object_script target, vector& pos)
         m_wait_for_cast = 0;
         return;
     }
+    if (myhero->get_active_spell())
+    {
+        if (myhero->get_active_spell()->is_channeling())
+            console->print("channeling");
+    }
     bool found = false;
     bool valid_target = target && target->is_valid();
     if (valid_target)
@@ -981,7 +1125,7 @@ void orb_walker::orbwalk(game_object_script target, vector& pos)
                     m_double_attack = 1;
                 event_handler<events::on_after_attack_orbwalker>::invoke(target);
                 m_wait_for_cast = gametime->get_prec_time() + 0.3;
-                //next_attack_time = end_attack;
+                // next_attack_time = end_attack;
 
                 m_has_moved_since_last = false;
                 m_rand_time = 0.f;
